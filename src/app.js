@@ -1,7 +1,7 @@
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.2.1";
+const APP_VER = "1.3.0";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */
@@ -10,7 +10,8 @@ function loadG() {
   try { const r = localStorage.getItem(STORE); if (r) o = JSON.parse(r) || {}; } catch (e) { o = {}; }
   o.profiles = Array.isArray(o.profiles) ? o.profiles : [];
   o.data = o.data || {};
-  o.set = Object.assign({ auto: true, sfx: true, voice: "", rate: 1, goal: 15, style: "lumi" }, o.set || {});
+  o.set = Object.assign({ auto: true, sfx: true, voice: "", rate: 1, goal: 15 }, o.set || {});
+  delete o.set.style; delete o.set.vmap; // Vorlese-Figuren gibt es seit 1.3 nicht mehr
   return o;
 }
 let G = loadG();
@@ -69,24 +70,25 @@ let VOICES = [];
 function loadVoices() { try { VOICES = (speechSynthesis.getVoices() || []).filter(v => /^de/i.test(v.lang)); } catch (e) { VOICES = []; } }
 if ("speechSynthesis" in window) { loadVoices(); speechSynthesis.addEventListener && speechSynthesis.addEventListener("voiceschanged", loadVoices); }
 function pickVoice() {
-  const want = (G.set.vmap && G.set.vmap[G.set.style]) || G.set.voice;
-  const own = want && VOICES.find(v => v.name === want);
+  const own = G.set.voice && VOICES.find(v => v.name === G.set.voice);
   if (own) return own;
   const nice = v => /google|natural|enhanced|premium|neural/i.test(v.name);
   const de = VOICES.filter(v => /de[-_]DE/i.test(v.lang));
-  /* Männer-Figuren: eine männliche Stimme nehmen, wenn das Handy eine anbietet */
-  const st = STYLE[G.set.style];
-  if (st && st.male) { const m = VOICES.find(v => !/female|weiblich/i.test(v.name) && /\bmale\b|männlich|markus|stefan|conrad|killian|florian|jonas|x-deg|x-dea/i.test(v.name)); if (m) return m; }
   return de.find(nice) || de[0] || VOICES.find(nice) || VOICES[0] || null;
 }
 const DEN = { 2: "Halbe", 3: "Drittel", 4: "Viertel", 5: "Fünftel", 6: "Sechstel", 7: "Siebtel", 8: "Achtel", 9: "Neuntel", 10: "Zehntel", 12: "Zwölftel", 100: "Hundertstel" };
 function speechText(s) {
   return plain(s)
+    .replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}\uFE0F\u200D]/gu, "").replace(/^[\s,]+/, "")
+    .replace(/\bABC\b/g, "A B C")
+    .replace(/[A-ZÄÖÜ]{3,}/g, w => (/^(SOS|USA|DNA|DNS|LKW|WC)$/.test(w) ? w : w.toLowerCase().replace(/^gross$/, "groß").replace(/^süss$/, "süß")))
+    .replace(/(^|[\s(])-(\d)/g, "$1minus $2") // GROSSBUCHSTABEN-Wörter nicht buchstabieren
+    .replace(/\((−?\d+)\)/g, "$1").replace(/\(([^()]*\d[^()]*)\)/g, " Klammer auf $1 Klammer zu ").replace(/ \+ /g, " plus ").replace(/\s*=\s*\?\s*$/g, " ist wie viel?").replace(/ = /g, " ist gleich ")
     .replace(/(\d+)\/(\d+)/g, (m, n, d) => (d === "2" && n === "1" ? "ein halb" : DEN[d] ? `${n === "1" ? "ein" : n} ${DEN[d]}` : `${n} durch ${d}`))
     .replace(/(\d) (\d)/g, "$1$2")
     .replace(/·/g, " mal ").replace(/(\d|\)) : (\d|\()/g, "$1 geteilt durch $2").replace(/−\s?(\d)/g, "minus $1").replace(/ − /g, " minus ")
-    .replace(/≈/g, " ungefähr ").replace(/²/g, " hoch 2").replace(/³/g, " hoch 3").replace(/°C/g, " Grad").replace(/___/g, " … ")
-    .replace(/ = \?/g, " ist gleich?").replace(/→|–/g, ", ");
+    .replace(/ ≈ \?/g, ". Ungefähr wie viel?").replace(/≈/g, " ungefähr ").replace(/²/g, " hoch 2").replace(/³/g, " hoch 3").replace(/°C/g, " Grad").replace(/___/g, " … ")
+    .replace(/→|–/g, ", ");
 }
 function say(text, rate = 1) {
   if (!text || !("speechSynthesis" in window)) return;
@@ -95,24 +97,11 @@ function say(text, rate = 1) {
     const u = new SpeechSynthesisUtterance(speechText(text)), v = pickVoice();
     if (v) u.voice = v;
     u.lang = v ? v.lang : "de-DE";
-    const st = STYLE[G.set.style] || STYLE.lumi;
-    u.pitch = st.pitch;
-    u.rate = 0.9 * G.set.rate * rate * st.rate;
+    u.pitch = 1.05;
+    u.rate = 0.9 * G.set.rate * rate;
     speechSynthesis.speak(u);
   } catch (e) {}
 }
-/* Vorlese-Stimmen (Tonhöhe und Tempo der Handy-Stimme) */
-const STYLE = {
-  lumi: { e: "🦉", n: "Lumi", pitch: 1.1, rate: 1, hi: "Hallo! Ich bin Lumi, die Lern-Eule." },
-  maus: { e: "🐭", n: "Mäuschen", pitch: 1.9, rate: 1.08, hi: "Hallo! Ich bin das kleine Mäuschen. Piep piep!" },
-  robo: { e: "🤖", n: "Robo", pitch: 0.2, rate: 0.85, male: true, hi: "Hallo. Ich. Bin. Robo. Der Rechen-Roboter." },
-  fee: { e: "🧚", n: "Fee Flora", pitch: 1.5, rate: 0.95, hi: "Hallo! Ich bin Fee Flora. Lass uns zaubern und lernen!" },
-  /* Männer-Stimmen (Wunsch 1.2: für Jungs – Superheld, Baggerfahrer, Polizist) */
-  held: { e: "🦸‍♂️", n: "Kapitän Blitz", pitch: 0.3, rate: 1, male: true, hi: "Keine Angst! Kapitän Blitz ist da! Zusammen schaffen wir jede Aufgabe!" },
-  bagger: { e: "🚜", n: "Baggerfahrer Bernd", pitch: 0.05, rate: 0.9, male: true, hi: "Moin! Ich bin Bernd, der Baggerfahrer. Jetzt wird gebuddelt – und gelernt!" },
-  polizei: { e: "👮‍♂️", n: "Polizist Paul", pitch: 0.2, rate: 0.95, male: true, hi: "Guten Tag! Polizist Paul hier. Ich passe auf, dass du alles richtig machst!" },
-  feuer: { e: "👨‍🚒", n: "Feuerwehrmann Fred", pitch: 0.12, rate: 0.95, male: true, hi: "Tatü tata! Feuerwehrmann Fred ist zur Stelle. Los geht's!" }
-};
 const stopSay = () => { try { speechSynthesis.cancel(); } catch (e) {} };
 
 /* ======================= SPRACHE: Spracherkennung (wie im Vokabelheft) ======================= */
@@ -437,11 +426,9 @@ function renderSet() {
     </div>
     <div class="sec"><h3>Hören und Sprechen</h3></div>
     <div class="card">
-      <div class="set-row" style="display:block"><span>Wer liest vor?</span><div class="seg" style="margin-top:8px">${Object.entries(STYLE).map(([k, v]) => `<button data-style="${k}" aria-pressed="${(STYLE[s.style] ? s.style : "lumi") === k}" style="font-size:16px;height:auto;padding:6px 10px;display:flex;flex-direction:column;align-items:center"><span style="font-size:30px">${v.e}</span>${v.n}</button>`).join("")}</div></div>
       <div class="set-row"><span>Aufgaben automatisch vorlesen</span>${sw("auto", s.auto)}</div>
       <div class="set-row"><span>Töne</span>${sw("sfx", s.sfx)}</div>
-      <div class="set-row"><span>Handy-Stimme für ${esc((STYLE[s.style] || STYLE.lumi).n)}<br><span class="muted">${VOICES.length} deutsche Stimme${VOICES.length === 1 ? "" : "n"} auf dem Handy</span></span><select id="voiceSel"><option value="">Automatisch</option>${VOICES.map(v => `<option value="${esc(v.name)}" ${v.name === ((s.vmap || {})[s.style] || s.voice) ? "selected" : ""}>${esc(v.name)}</option>`).join("")}</select></div>
-      ${(STYLE[s.style] || {}).male ? `<div class="note" style="margin:6px 0 10px">👨 Klingt die Stimme noch zu sehr nach Frau? Dann auf dem Handy eine Männer-Stimme einstellen: Einstellungen → System → Sprachen → Sprachausgabe → Zahnrad bei „Sprachausgabe von Google“ → Sprachdaten installieren → Deutsch (Deutschland) → eine männliche Stimme antippen. Danach die App neu öffnen und hier oben die Stimme auswählen.</div>` : ""}
+      <div class="set-row"><span>Stimme</span><select id="voiceSel"><option value="">Automatisch</option>${VOICES.map(v => `<option value="${esc(v.name)}" ${v.name === s.voice ? "selected" : ""}>${esc(v.name)}</option>`).join("")}</select></div>
       <div class="set-row"><span>Sprechtempo</span><div class="seg">${[[0.8, "🐢"], [1, "🙂"], [1.15, "🐇"]].map(([r, l]) => `<button data-rate="${r}" aria-pressed="${s.rate === r}">${l}</button>`).join("")}</div></div>
       <div class="set-row"><span>Probe hören</span><button class="btn small ghost" data-act="test-voice">🔊 Hallo!</button></div>
       <div class="set-row"><span>Spracherkennung</span><span class="muted">${DICT ? "✅ bereit" : "❌ nicht in diesem Browser (Chrome benutzen)"}</span></div>
@@ -456,7 +443,7 @@ function renderSet() {
     </div>
     <p class="muted" style="text-align:center;margin-top:22px">Lern-App Klasse 1–6 · Version ${APP_VER}</p>
   </div>`;
-  $("#voiceSel").addEventListener("change", e => { G.set.vmap = G.set.vmap || {}; G.set.vmap[G.set.style] = e.target.value; save(); say((STYLE[G.set.style] || STYLE.lumi).hi); });
+  $("#voiceSel").addEventListener("change", e => { G.set.voice = e.target.value; save(); say("Hallo! Ich bin Lumi, die Lern-Eule."); });
   $("#restoreFile").addEventListener("change", e => { const f = e.target.files[0]; if (f) restore(f); });
 }
 function backup() {
@@ -600,7 +587,23 @@ function showTask() {
   $("#sesBody").scrollTop = 0;
   if (t.type === "trace" || t.type === "write") PADS = makePad($("#pad"), t);
   if (t.type === "type") { const inp = $("#tin"); inp.addEventListener("keydown", e => { if (e.key === "Enter") checkType(); }); }
-  if (G.set.auto || t.autoSay) setTimeout(() => { if (SES && curT() === t) say(t.say || t.q); }, 300);
+  if (G.set.auto || t.autoSay) setTimeout(() => { if (SES && curT() === t) say(introSpeech(t)); }, 300);
+}
+
+/* Was beim Start einer Aufgabe vorgelesen wird */
+function introSpeech(t) {
+  const q = plain(t.q);
+  let txt = t.say || q;
+  // Hör-Aufgaben (z. B. „Welche Zahl hörst du?“): erst die Frage, dann das Gehörte
+  if (t.autoSay && t.say && t.say !== q) txt = q + " … " + t.say;
+  // Klasse 1–2: Antwort-Wörter mit vorlesen, weil viele Kinder noch nicht gut lesen
+  const p = P();
+  if (t.type === "choice" && (t.ot || "word") === "word" && p && p.cls <= 2 && SES && SES.opts) {
+    const o = SES.opts.map(x => speechText(x).trim()).filter(Boolean);
+    const same = new Set(o.map(x => x.toLowerCase())).size < o.length;
+    if (!same && o.length > 1 && o.join(" ").length < 120) txt += " … " + o.slice(0, -1).join(", ") + " oder " + o[o.length - 1] + "?";
+  }
+  return txt;
 }
 
 /* ---- Antworten ---- */
@@ -872,7 +875,6 @@ document.addEventListener("click", e => {
   if (ds.cls) { FORM.cls = Number(ds.cls); document.querySelectorAll("#fCls button").forEach(b => b.setAttribute("aria-pressed", b === el)); return; }
   if (ds.av) { FORM.av = ds.av; document.querySelectorAll("#fAv button").forEach(b => b.setAttribute("aria-pressed", b === el)); return; }
   if (ds.toggle) { G.set[ds.toggle] = !G.set[ds.toggle]; save(); el.setAttribute("aria-pressed", G.set[ds.toggle]); return; }
-  if (ds.style) { G.set.style = ds.style; save(); renderSet(); say(STYLE[ds.style].hi); return; }
   if (ds.rate) { G.set.rate = Number(ds.rate); save(); renderSet(); say("So schnell spreche ich jetzt."); return; }
   if (ds.goal) { G.set.goal = Number(ds.goal); save(); return renderSet(); }
   if (ds.color) { PNT.c = ds.color; PNT.stamp = null; document.querySelectorAll("[data-color],[data-stamp]").forEach(b => b.setAttribute("aria-pressed", b === el)); return; }
