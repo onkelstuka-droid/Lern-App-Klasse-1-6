@@ -104,7 +104,13 @@ const STYLE = {
   maus: { e: "🐭", n: "Mäuschen", pitch: 1.9, rate: 1.08, hi: "Hallo! Ich bin das kleine Mäuschen. Piep piep!" },
   robo: { e: "🤖", n: "Robo", pitch: 0.2, rate: 0.85, hi: "Hallo. Ich. Bin. Robo. Der Rechen-Roboter." },
   opa: { e: "🐢", n: "Opa Kröte", pitch: 0.75, rate: 0.72, hi: "Hallo, mein Kind. Ich bin Opa Kröte. Wir haben viel Zeit." },
-  fee: { e: "🧚", n: "Fee Flora", pitch: 1.5, rate: 0.95, hi: "Hallo! Ich bin Fee Flora. Lass uns zaubern und lernen!" }
+  fee: { e: "🧚", n: "Fee Flora", pitch: 1.5, rate: 0.95, hi: "Hallo! Ich bin Fee Flora. Lass uns zaubern und lernen!" },
+  /* eigene Schweine-Familie „Ringelschwanz“ (keine Figuren aus Fernsehserien nachmachen) */
+  rpapa: { e: "🐷", n: "Papa Ringel", pitch: 0.5, rate: 0.92, hi: "Grunz! Hallo, ich bin Papa Ringel. Komm, wir lernen zusammen!" },
+  rmama: { e: "🐖", n: "Mama Ringel", pitch: 1.15, rate: 0.95, hi: "Hallo, mein Schatz! Ich bin Mama Ringel. Grunz grunz!" },
+  rosi: { e: "🐽", n: "Ferkel Rosi", pitch: 1.7, rate: 1.05, hi: "Hihi, grunz! Ich bin Ferkel Rosi. Wollen wir in die Pfütze springen? Erst nach dem Lernen!" },
+  rbaby: { e: "🍼", n: "Baby Ringel", pitch: 2, rate: 1.12, hi: "Grunzi grunzi! Ich bin Baby Ringel." },
+  ropa: { e: "👴", n: "Opa Ringel", pitch: 0.7, rate: 0.8, hi: "Grunz! Ich bin Opa Ringel. Schön, dass du da bist." }
 };
 const stopSay = () => { try { speechSynthesis.cancel(); } catch (e) {} };
 
