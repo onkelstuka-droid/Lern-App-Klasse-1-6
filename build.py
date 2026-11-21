@@ -4,7 +4,7 @@
 import os, json, hashlib, glob
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 rd = lambda p: open(p, encoding='utf-8').read()
-JS = ['src/data.js', 'src/glyphs.js', 'src/units.js', 'src/app.js']
+JS = ['src/data.js', 'src/glyphs.js', 'src/units.js', 'src/templates.js', 'src/paint.js', 'src/app.js']
 css, body = rd('src/style.css'), rd('src/body.html')
 js = '\n'.join(rd(p) for p in JS)
 ver = hashlib.sha1((css + body + js + rd(__file__)).encode()).hexdigest()[:10]

@@ -46,6 +46,13 @@ Wünsche (21.11.2026): Kinder Klasse 1–6; Buchstaben, Zahlen, Rechnen; mit dem
 - 1.6: WhatsApp meldete „Teilen fehlgeschlagen“, wenn Bild + Text geteilt wurden → nur noch das Bild (JPEG) teilen. Malen hat Modi `PNT.mode` = pen | erase | stamp: „🧽 Schwamm“ radiert mit weißer Farbe (Breite = Pinselgröße · 2,5), 4 Größen; „🗑️ Neu“ löscht alles. `paintSync()` markiert die Knöpfe.
 - 1.7: WhatsApp meldete trotzdem „Teilen fehlgeschlagen“ (Ursache am Gerät nicht prüfbar) → Teilen jetzt mit leerem `title` und verkleinertem JPEG (`PAINT.snapshot`, max. 1280 px); danach Hinweis „sonst 💾 Speichern und in WhatsApp über 📎 anhängen“. Stempel: Größe `s` je Stempel; im Stempel-Modus Stempel antippen = auswählen (gestrichelter Rahmen, nicht im gespeicherten Bild), mit einem Finger verschieben, mit zwei Fingern größer/kleiner ziehen, ➕/➖-Knöpfe. Fehler behoben: nach Stempeln hat der Pinsel weiter gestempelt (Abfrage jetzt `PNT.mode === "stamp"`).
 
+## Malen ab 1.8 (`src/paint.js`, `src/templates.js`)
+- Wunsch: ca. 30 Ausmalbilder + ganzer Bildschirm. `TPLS` = 30 eigene Strichzeichnungen (Blatt 300×400, Formen c/e/r/p/l/d, geschlossene Formen weiß gefüllt → verdeckte Linien verschwinden). Auswahl „🖍️ Ausmalbilder“ (Vorschau als SVG), „📄 Leeres Blatt“.
+- Zeichnung `PDOC = {shapes, tpl, aspect}`: Blatt mit festem Seitenverhältnis (Handy-Höhe/Breite), Koordinaten 0…1 → keine Verzerrung zwischen normal und ganzem Bildschirm. Ebenen: `base` (Striche + Füllungen) → Linien des Ausmalbilds (`line`, darüber) → Stempel → Auswahlrahmen.
+- Modi: 🖌️ Pinsel, 🪣 Füllen (Flood-Fill auf `base`, begrenzt durch Ausmalbild-Linien `lineMask` und durch andersfarbige Flächen; Linienrand wird mitgefärbt), 🧽 Schwamm, Stempel. „↩️“ entfernt den letzten Schritt (base wird neu aufgebaut).
+- „⛶ Ganzer Bildschirm“ (`paintFull`, Ebene in der Zurück-Navigation, Vollbild-API): oben kompakte Leiste (✖ Klein, Modi, Größen, ↩️, 💾, Farben, Stempel), Malfläche füllt den Rest.
+- Speichern speichert das Bild (ohne die Zeichnung zu löschen) in „Meine Bilder“ + Downloads.
+
 ## Arbeitsweise
 - Testen mit Playwright/Chromium (vorinstalliert) über `python3 -m http.server`; alle Lektionen in einer Schleife generieren und prüfen (richtige Antwort in den Optionen, keine NaN/undefined).
 - Inhalte (Wörter, Sätze, Diktate) in `data.js` ergänzen.

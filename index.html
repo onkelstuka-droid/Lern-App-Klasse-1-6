@@ -304,6 +304,25 @@ canvas.paint { width: 100%; height: 50vh; background: #fff; border-radius: 20px;
 .tool.wide { padding: 0 12px; font-size: 16px; font-weight: 600; }
 .sizes { display: inline-flex; gap: 8px; }
 .tool i { display: inline-block; border-radius: 50%; background: currentColor; vertical-align: middle; }
+.paint-main.two { grid-template-columns: 1fr 1fr; }
+canvas.paint { height: 62vh; background: #dfe8f2; }
+/* ganzer Bildschirm */
+.pf { position: fixed; inset: 0; display: flex; flex-direction: column; background: #dfe8f2; z-index: 15; }
+.pf-bar { background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); padding: 6px 8px 4px; padding-top: calc(6px + env(safe-area-inset-top, 0px)); }
+.pf-row { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px 0 6px; align-items: center; }
+.pf-row .sw { width: 34px; height: 34px; flex: none; }
+.pf-row .tool { flex: none; min-width: 40px; height: 40px; }
+.pf-hint { font-size: 13px; padding: 0 2px; }
+.pf-hint .tool { min-width: 34px; height: 34px; }
+canvas.paint.full { flex: 1; width: 100%; height: auto; min-height: 0; border-radius: 0; box-shadow: none; }
+body.noscroll { overflow: hidden; }
+/* Ausmalbilder-Auswahl */
+.tpl-box { width: min(560px, 100%); max-height: 88vh; display: flex; flex-direction: column; text-align: left; }
+.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; overflow-y: auto; padding: 10px 2px 4px; }
+.tpl-grid button { background: #fff; border: 2px solid var(--line); border-radius: 16px; padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tpl-grid svg { width: 100%; height: auto; aspect-ratio: 3 / 4; display: block; }
+.tpl-grid small { font-size: 13px; font-weight: 600; }
+.tpl-grid .blank { font-size: 46px; aspect-ratio: 3 / 4; display: grid; place-items: center; width: 100%; }
 </style>
 <script>if("serviceWorker" in navigator){var hadSW=!!navigator.serviceWorker.controller,reloaded=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(hadSW&&!reloaded){reloaded=true;location.reload()}});addEventListener("load",function(){navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(function(r){r.update()}).catch(function(){})});document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")navigator.serviceWorker.getRegistration().then(function(r){r&&r.update()})})}</script>
 </head><body>
@@ -1345,10 +1364,423 @@ U("d_fremd", "deut", 6, "🌍", "Fremdwörter verstehen", () => qTasks(Q.fremd))
 const UNIT = Object.fromEntries(UNITS.map(u => [u.id, u]));
 const AREA = Object.fromEntries(AREAS.map(a => [a.id, a]));
 
+/* ======================= AUSMALBILDER =======================
+   Eigene, einfache Strichzeichnungen auf einem Blatt 300 × 400.
+   Formen: ["c", x, y, r] Kreis · ["e", x, y, rx, ry] Ellipse · ["r", x, y, b, h] Rechteck ·
+           ["p", "x,y x,y …"] Vieleck (geschlossen) · ["l", "x,y x,y …"] Linie · ["d", "SVG-Pfad"] */
+function heartD(cx, cy, s) {
+  return `M${cx} ${cy + s * 0.9} C${cx - s * 1.4} ${cy - s * 0.1} ${cx - s * 0.6} ${cy - s * 1.1} ${cx} ${cy - s * 0.45} C${cx + s * 0.6} ${cy - s * 1.1} ${cx + s * 1.4} ${cy - s * 0.1} ${cx} ${cy + s * 0.9} Z`;
+}
+function starP(cx, cy, R, r, n = 5) {
+  const pts = [];
+  for (let i = 0; i < n * 2; i++) { const a = -Math.PI / 2 + (i * Math.PI) / n, rr = i % 2 ? r : R; pts.push(`${(cx + rr * Math.cos(a)).toFixed(1)},${(cy + rr * Math.sin(a)).toFixed(1)}`); }
+  return ["p", pts.join(" ")];
+}
+function sunRays(cx, cy, r1, r2, n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2, w = Math.PI / n / 1.6;
+    const p = (ang, r) => `${(cx + r * Math.cos(ang)).toFixed(1)},${(cy + r * Math.sin(ang)).toFixed(1)}`;
+    out.push(["p", `${p(a - w, r1)} ${p(a, r2)} ${p(a + w, r1)}`]);
+  }
+  return out;
+}
+const drop = (x, y) => ["d", `M${x} ${y} Q${x - 10} ${y + 20} ${x} ${y + 24} Q${x + 10} ${y + 20} ${x} ${y} Z`];
+
+const TPLS = [
+  { id: "haus", n: "Haus", e: "🏠", s: [["r", 60, 170, 180, 170], ["p", "40,175 150,80 260,175"], ["r", 195, 95, 22, 48], ["r", 125, 260, 50, 80], ["c", 165, 300, 4], ["r", 80, 200, 40, 40], ["l", "100,200 100,240"], ["l", "80,220 120,220"], ["r", 180, 200, 40, 40], ["l", "200,200 200,240"], ["l", "180,220 220,220"], ["l", "10,340 290,340"], ["c", 255, 45, 25]] },
+  { id: "sonne", n: "Sonne", e: "☀️", s: [...sunRays(150, 200, 78, 125, 12), ["c", 150, 200, 70], ["c", 125, 185, 8], ["c", 175, 185, 8], ["d", "M120 222 Q150 252 180 222"]] },
+  { id: "blume", n: "Blume", e: "🌸", s: [...[0, 1, 2, 3, 4, 5].map(i => ["c", 150 + 48 * Math.cos(i * Math.PI / 3), 140 + 48 * Math.sin(i * Math.PI / 3), 28]), ["c", 150, 140, 25], ["d", "M150 188 Q145 260 150 312"], ["d", "M148 262 Q110 232 95 257 Q115 282 148 270 Z"], ["d", "M152 247 Q190 217 205 242 Q185 267 152 257 Z"], ["r", 92, 310, 116, 18], ["p", "100,328 200,328 188,385 112,385"]] },
+  { id: "baum", n: "Baum", e: "🌳", s: [["p", "130,380 170,380 162,250 138,250"], ["c", 150, 150, 70], ["c", 95, 190, 50], ["c", 205, 190, 50], ["c", 150, 215, 55], ["c", 120, 150, 10], ["c", 180, 170, 10], ["c", 150, 110, 10], ["c", 110, 210, 10], ["c", 200, 215, 10], ["l", "20,380 280,380"]] },
+  { id: "auto", n: "Auto", e: "🚗", s: [["d", "M30 250 L30 212 Q35 195 60 195 L95 195 L125 150 L200 150 L235 195 L262 200 Q275 205 275 220 L275 250 Z"], ["p", "105,195 132,162 160,162 160,195"], ["p", "170,195 170,162 196,162 222,195"], ["l", "165,200 165,245"], ["r", 258, 212, 12, 12], ["c", 85, 255, 28], ["c", 85, 255, 12], ["c", 220, 255, 28], ["c", 220, 255, 12], ["l", "10,285 290,285"]] },
+  { id: "fisch", n: "Fisch", e: "🐟", s: [["p", "225,200 285,150 285,250"], ["p", "130,145 170,110 175,150"], ["p", "135,255 165,285 170,250"], ["e", 140, 200, 95, 60], ["d", "M110 160 Q125 200 110 240"], ["d", "M150 145 Q165 200 150 255"], ["d", "M190 150 Q205 200 190 250"], ["c", 82, 185, 12], ["c", 82, 185, 5], ["c", 40, 120, 10], ["c", 55, 88, 7], ["c", 35, 62, 12]] },
+  { id: "katze", n: "Katze", e: "🐱", s: [["d", "M215 330 Q290 310 262 235"], ["e", 150, 300, 75, 80], ["p", "95,135 100,75 135,115"], ["p", "205,135 200,75 165,115"], ["c", 150, 170, 65], ["e", 125, 165, 10, 14], ["e", 175, 165, 10, 14], ["p", "142,190 158,190 150,200"], ["d", "M150 200 Q140 215 128 208"], ["d", "M150 200 Q160 215 172 208"], ["l", "60,185 112,194"], ["l", "60,205 112,203"], ["l", "240,185 188,194"], ["l", "240,205 188,203"], ["e", 120, 375, 22, 12], ["e", 180, 375, 22, 12]] },
+  { id: "schmetterling", n: "Schmetterling", e: "🦋", s: [["e", 95, 150, 60, 55], ["e", 205, 150, 60, 55], ["e", 105, 255, 45, 48], ["e", 195, 255, 45, 48], ["c", 90, 145, 18], ["c", 210, 145, 18], ["c", 105, 260, 14], ["c", 195, 260, 14], ["e", 150, 205, 14, 85], ["c", 150, 110, 16], ["d", "M145 98 Q125 55 105 50"], ["d", "M155 98 Q175 55 195 50"]] },
+  { id: "herzen", n: "Herzen", e: "❤️", s: [["d", heartD(150, 205, 100)], ["d", heartD(150, 215, 48)], ["d", heartD(55, 70, 30)], ["d", heartD(245, 75, 28)], ["d", heartD(60, 345, 25)], ["d", heartD(240, 345, 30)]] },
+  { id: "stern", n: "Stern", e: "⭐", s: [starP(150, 205, 125, 52), ["c", 130, 200, 7], ["c", 170, 200, 7], ["d", "M130 225 Q150 243 170 225"], starP(40, 55, 25, 10), starP(260, 60, 25, 10), starP(50, 355, 22, 9), starP(255, 350, 25, 10)] },
+  { id: "rakete", n: "Rakete", e: "🚀", s: [["p", "115,230 75,300 115,300"], ["p", "185,230 225,300 185,300"], ["d", "M115 300 L115 150 Q150 60 185 150 L185 300 Z"], ["c", 150, 170, 22], ["c", 150, 170, 13], ["l", "115,250 185,250"], ["p", "125,300 175,300 165,320 135,320"], ["d", "M135 320 Q150 385 165 320 Z"], starP(50, 80, 18, 7), starP(250, 120, 18, 7), starP(60, 220, 14, 6)] },
+  { id: "boot", n: "Segelboot", e: "⛵", s: [["c", 255, 60, 25], ["l", "150,280 150,80"], ["p", "145,92 145,265 70,265"], ["p", "155,112 155,265 225,265"], ["p", "150,80 180,90 150,100"], ["p", "50,280 250,280 215,330 85,330"], ["d", "M10 345 Q35 330 60 345 T110 345 T160 345 T210 345 T260 345 T310 345"]] },
+  { id: "apfel", n: "Apfel", e: "🍎", s: [["d", "M150 120 C110 90 50 110 55 190 C60 290 120 340 150 315 C180 340 240 290 245 190 C250 110 190 90 150 120 Z"], ["d", "M150 120 Q148 85 160 65"], ["d", "M157 90 Q190 55 225 75 Q195 105 157 90 Z"], ["e", 100, 170, 12, 25]] },
+  { id: "ballons", n: "Luftballons", e: "🎈", s: [["d", "M100 185 Q90 260 140 360"], ["d", "M200 175 Q215 260 155 360"], ["d", "M150 265 Q140 310 148 360"], ["e", 100, 130, 45, 55], ["e", 200, 120, 45, 55], ["e", 150, 210, 45, 55], ["p", "94,192 106,192 100,184"], ["p", "194,182 206,182 200,174"], ["p", "144,272 156,272 150,264"]] },
+  { id: "schneemann", n: "Schneemann", e: "⛄", s: [["l", "100,190 45,150"], ["l", "200,190 255,150"], ["c", 150, 310, 75], ["c", 150, 195, 55], ["r", 112, 138, 76, 16], ["c", 150, 105, 40], ["r", 105, 62, 90, 10], ["r", 120, 15, 60, 47], ["c", 137, 98, 5], ["c", 163, 98, 5], ["p", "150,108 185,115 150,118"], ["c", 150, 180, 6], ["c", 150, 205, 6], ["c", 150, 290, 7], ["c", 150, 320, 7], ["l", "10,385 290,385"]] },
+  { id: "eis", n: "Eis", e: "🍦", s: [["p", "105,210 195,210 150,370"], ["l", "115,240 185,240"], ["l", "125,280 175,280"], ["l", "135,320 165,320"], ["c", 150, 180, 48], ["c", 150, 112, 42], ["c", 150, 62, 14], ["d", "M150 48 Q155 27 170 22"]] },
+  { id: "cupcake", n: "Cupcake", e: "🧁", s: [["p", "85,230 215,230 195,350 105,350"], ["l", "120,230 128,350"], ["l", "150,230 150,350"], ["l", "180,230 172,350"], ["d", "M75 230 Q70 190 105 185 Q105 140 150 140 Q195 140 195 185 Q230 190 225 230 Z"], ["c", 150, 125, 16]] },
+  { id: "eule", n: "Eule Lumi", e: "🦉", s: [["r", 30, 355, 240, 18], ["p", "70,120 85,62 115,100"], ["p", "230,120 215,62 185,100"], ["e", 150, 220, 95, 130], ["e", 150, 265, 55, 72], ["d", "M58 200 Q30 270 85 320"], ["d", "M242 200 Q270 270 215 320"], ["c", 115, 170, 33], ["c", 185, 170, 33], ["c", 115, 170, 12], ["c", 185, 170, 12], ["p", "140,195 160,195 150,220"], ["e", 125, 352, 18, 8], ["e", 175, 352, 18, 8]] },
+  { id: "hund", n: "Hund", e: "🐶", s: [["e", 70, 195, 28, 60], ["e", 230, 195, 28, 60], ["e", 150, 190, 85, 80], ["e", 185, 145, 18, 14], ["c", 120, 170, 10], ["c", 180, 170, 10], ["e", 150, 222, 40, 30], ["e", 150, 207, 14, 10], ["d", "M150 217 L150 233 M150 233 Q135 246 125 236 M150 233 Q165 246 175 236"], ["r", 95, 268, 110, 18], ["c", 150, 298, 12]] },
+  { id: "schildkroete", n: "Schildkröte", e: "🐢", s: [["e", 95, 262, 20, 16], ["e", 205, 262, 20, 16], ["p", "60,235 35,245 60,252"], ["c", 262, 222, 25], ["c", 270, 214, 4], ["r", 55, 235, 190, 16], ["d", "M60 236 Q150 90 240 236 Z"], ["p", "150,155 175,172 175,205 150,220 125,205 125,172"], ["l", "150,155 150,118"], ["l", "175,172 205,150"], ["l", "175,205 215,222"], ["l", "125,205 85,222"], ["l", "125,172 95,150"]] },
+  { id: "pilz", n: "Pilz", e: "🍄", s: [["d", "M115 210 L110 330 Q150 345 190 330 L185 210 Z"], ["d", "M50 210 Q55 90 150 85 Q245 90 250 210 Z"], ["c", 100, 160, 15], ["c", 150, 130, 18], ["c", 200, 165, 15], ["c", 150, 185, 10], ["l", "40,340 260,340"], ["l", "60,340 65,320"], ["l", "75,340 82,318"], ["l", "225,340 230,318"], ["l", "240,340 248,322"]] },
+  { id: "regenbogen", n: "Regenbogen", e: "🌈", s: [...[0, 1, 2, 3, 4, 5].map(i => { const r = 140 - i * 18; return ["d", `M${150 - r} 300 A${r} ${r} 0 0 1 ${150 + r} 300`]; }), ["l", "10,300 290,300"], ["c", 30, 300, 26], ["c", 60, 308, 24], ["c", 270, 300, 26], ["c", 240, 308, 24], ["c", 255, 60, 25]] },
+  { id: "burg", n: "Burg", e: "🏰", s: [["r", 40, 140, 60, 230], ["r", 200, 140, 60, 230], ["r", 100, 190, 100, 180], ["p", "35,140 70,70 105,140"], ["p", "195,140 230,70 265,140"], ["l", "70,70 70,40"], ["p", "70,40 95,48 70,56"], ["l", "230,70 230,40"], ["p", "230,40 255,48 230,56"], ["l", "100,190 100,175 120,175 120,190 140,190 140,175 160,175 160,190 180,190 180,175 200,175 200,190"], ["d", "M125 370 L125 300 Q150 270 175 300 L175 370 Z"], ["r", 60, 180, 20, 30], ["r", 220, 180, 20, 30], ["r", 60, 250, 20, 30], ["r", 220, 250, 20, 30], ["l", "10,370 290,370"]] },
+  { id: "zug", n: "Zug", e: "🚂", s: [["c", 95, 130, 15], ["c", 115, 100, 20], ["c", 145, 72, 25], ["r", 80, 160, 25, 40], ["r", 60, 200, 130, 70], ["r", 180, 150, 80, 120], ["r", 172, 140, 96, 14], ["r", 195, 165, 50, 35], ["p", "60,250 35,280 60,280"], ["c", 90, 285, 22], ["c", 150, 285, 22], ["c", 220, 285, 22], ["l", "10,310 290,310"]] },
+  { id: "schirm", n: "Regenschirm", e: "☂️", s: [["d", "M150 200 L150 330 Q150 360 125 355 Q105 350 108 330"], ["d", "M40 200 Q150 60 260 200 Q232 180 205 200 Q178 180 150 200 Q122 180 95 200 Q68 180 40 200 Z"], ["d", "M95 200 Q115 135 150 115"], ["d", "M205 200 Q185 135 150 115"], drop(50, 250), drop(250, 260), drop(70, 330), drop(230, 340), drop(40, 60), drop(260, 50)] },
+  { id: "dino", n: "Dino", e: "🦕", s: [["d", "M35 330 Q60 300 95 290 Q100 240 150 225 Q160 170 165 120 Q170 75 200 72 Q230 74 228 98 Q214 110 196 108 Q190 160 200 225 Q260 240 265 300 Q270 335 245 335 L245 365 L220 365 L218 335 L140 335 L138 365 L113 365 L110 335 Q70 335 35 330 Z"], ["c", 208, 88, 5], ["c", 150, 280, 15], ["c", 200, 285, 12], ["c", 175, 250, 9], ["c", 115, 305, 9], ["l", "10,365 290,365"]] },
+  { id: "vogel", n: "Vogel", e: "🐦", s: [["p", "75,190 25,165 30,215"], ["l", "140,258 140,290"], ["l", "165,258 165,290"], ["e", 150, 200, 80, 60], ["c", 215, 150, 35], ["c", 225, 143, 6], ["p", "248,150 280,158 248,166"], ["d", "M110 192 Q150 150 185 197 Q150 232 110 192 Z"], ["r", 40, 290, 220, 14], ["d", "M220 297 Q250 270 270 290 Q245 310 220 297 Z"]] },
+  { id: "schnecke", n: "Schnecke", e: "🐌", s: [["l", "258,214 250,165"], ["l", "272,214 285,168"], ["c", 250, 160, 7], ["c", 286, 163, 7], ["d", "M45 305 Q40 290 70 290 L230 290 Q240 230 255 210 Q282 205 286 232 Q286 262 272 305 Z"], ["c", 130, 215, 80], ["c", 130, 215, 55], ["c", 130, 215, 30], ["c", 130, 215, 10], ["c", 266, 228, 4], ["l", "10,305 290,305"]] },
+  { id: "krone", n: "Krone", e: "👑", s: [["p", "50,300 50,140 100,210 150,110 200,210 250,140 250,300"], ["r", 50, 258, 200, 42], ["c", 100, 279, 12], ["c", 150, 279, 12], ["c", 200, 279, 12], ["c", 50, 130, 10], ["c", 150, 98, 12], ["c", 250, 130, 10], ["e", 150, 228, 12, 16]] },
+  { id: "roboter", n: "Roboter", e: "🤖", s: [["l", "150,70 150,40"], ["c", 150, 32, 9], ["r", 95, 70, 110, 85], ["c", 125, 105, 14], ["c", 175, 105, 14], ["r", 120, 130, 60, 14], ["l", "135,130 135,144"], ["l", "150,130 150,144"], ["l", "165,130 165,144"], ["r", 138, 155, 24, 15], ["r", 45, 180, 35, 90], ["r", 220, 180, 35, 90], ["r", 80, 170, 140, 120], ["r", 105, 190, 90, 50], ["c", 120, 265, 8], ["c", 150, 265, 8], ["c", 180, 265, 8], ["r", 100, 290, 35, 65], ["r", 165, 290, 35, 65], ["r", 90, 355, 55, 18], ["r", 155, 355, 55, 18]] }
+];
+/* jede Form als SVG-Pfad (für Leinwand und Vorschaubild) */
+function shapeD(f) {
+  const n = v => +(+v).toFixed(1);
+  if (f[0] === "c") { const [, x, y, r] = f; return `M${n(x - r)} ${n(y)} A${n(r)} ${n(r)} 0 1 0 ${n(x + r)} ${n(y)} A${n(r)} ${n(r)} 0 1 0 ${n(x - r)} ${n(y)} Z`; }
+  if (f[0] === "e") { const [, x, y, rx, ry] = f; return `M${n(x - rx)} ${n(y)} A${rx} ${ry} 0 1 0 ${n(x + rx)} ${n(y)} A${rx} ${ry} 0 1 0 ${n(x - rx)} ${n(y)} Z`; }
+  if (f[0] === "r") { const [, x, y, w, h] = f; return `M${x} ${y} h${w} v${h} h${-w} Z`; }
+  if (f[0] === "p") return "M" + f[1].trim().split(/\s+/).join(" L") + " Z";
+  if (f[0] === "l") return "M" + f[1].trim().split(/\s+/).join(" L");
+  return f[1];
+}
+const TPL_BY = Object.fromEntries(TPLS.map(t => [t.id, t]));
+/* geschlossene Formen werden weiß gefüllt, damit sie dahinterliegende Linien verdecken */
+const tplClosed = f => "cerp".includes(f[0]) || (f[0] === "d" && /Z\s*$/i.test(f[1]));
+function tplSvg(t) {
+  return `<svg viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg"><rect width="300" height="400" fill="#fff"/><g stroke="#23324a" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">${t.s.map(f => `<path d="${shapeD(f)}" fill="${tplClosed(f) ? "#fff" : "none"}"/>`).join("")}</g></svg>`;
+}
+
+/* ======================= MALEN =======================
+   Blatt mit festem Seitenverhältnis (PDOC.aspect = Höhe/Breite, passend zum Handy), Koordinaten 0…1.
+   Ebenen: base (Striche + Füllungen) → Ausmalbild-Linien → Stempel → Auswahl-Rahmen. */
+const PAINT_COLORS = ["#23324a", "#9aa5b1", "#f2554f", "#ff9532", "#ffbf1f", "#fff176", "#5ec94d", "#1fbf9f", "#3a9cff", "#9a78ff", "#ff64ab", "#f5c9a0", "#8b5a2b", "#ffffff"];
+const STAMPS = ["⭐", "❤️", "🌸", "🐞", "☀️", "🌈", "🦋", "🐟"];
+let PNT = { mode: "pen", c: "#3a9cff", w: 10, stamp: null }; // mode: pen | fill | erase | stamp
+let PDOC = null;        // die Zeichnung: { shapes, tpl, aspect }
+let PAINT = null;       // die Malfläche auf dem Bildschirm
+let PAINT_FULL = false; // ganzer Bildschirm
+const picKey = () => "lernapp_bilder_" + G.cur;
+function loadPics() { try { return JSON.parse(localStorage.getItem(picKey()) || "[]"); } catch (e) { return []; } }
+const paperAspect = () => Math.max(1.25, Math.min(2.1, (innerHeight - 70) / Math.max(1, innerWidth)));
+function newDrawing(tpl) { PDOC = { shapes: [], tpl: tpl || null, aspect: paperAspect() }; }
+
+function renderPaint() {
+  if (!PDOC) newDrawing();
+  const colors = PAINT_COLORS.map(c => `<button class="sw" data-color="${c}" style="background:${c}" aria-label="Farbe"></button>`).join("");
+  const sizes = [[5, 8], [10, 14], [22, 22], [36, 30]].map(([w, px]) => `<button class="tool" data-width="${w}" aria-label="Größe"><i style="width:${px}px;height:${px}px"></i></button>`).join("");
+  const modes = `<button class="tool wide" data-mode="pen">🖌️ Pinsel</button><button class="tool wide" data-mode="fill">🪣 Füllen</button><button class="tool wide" data-mode="erase">🧽 Schwamm</button>`;
+  const stamps = STAMPS.map(s => `<button class="tool" data-stamp="${s}">${s}</button>`).join("");
+  if (PAINT_FULL) {
+    app().innerHTML = `<div class="pf">
+      <div class="pf-bar">
+        <div class="pf-row"><button class="tool wide" data-act="paint-small">✖ Klein</button>${modes.replace(/ Pinsel| Füllen| Schwamm/g, "")}${sizes}<button class="tool" data-act="paint-undo" aria-label="Rückgängig">↩️</button><button class="tool" data-act="paint-save" aria-label="Speichern">💾</button></div>
+        <div class="pf-row">${colors}${stamps}</div>
+        <div class="muted pf-hint" id="paintHint"></div>
+      </div>
+      <canvas class="paint full" id="paintCv"></canvas></div>`;
+    initPaint(); paintSync();
+    return;
+  }
+  const pics = loadPics();
+  app().innerHTML = `<div class="wrap">
+    <div class="head"><button class="icon-btn" data-act="back" aria-label="Zurück">⬅️</button><div class="t">🎨 Malen</div></div>
+    <div class="paint-main">
+      <button class="btn green" data-act="paint-save">💾 Speichern</button>
+      <button class="btn wa" data-act="paint-share">💬 Schicken</button>
+      <button class="btn ghost" data-act="paint-clear">🗑️ Neu</button>
+    </div>
+    <div class="paint-main two">
+      <button class="btn orange" data-act="paint-tpl">🖍️ Ausmalbilder</button>
+      <button class="btn" data-act="paint-full">⛶ Ganzer Bildschirm</button>
+    </div>
+    <div class="paint-tools">${colors}</div>
+    <div class="paint-tools">${modes}</div>
+    <div class="paint-tools"><span class="sizes">${sizes}</span></div>
+    <div class="paint-tools">${stamps}</div>
+    <div class="muted" id="paintHint" style="margin:-2px 0 6px"></div>
+    <canvas class="paint" id="paintCv"></canvas>
+    <div class="padbar"><button class="btn ghost small" data-act="paint-undo">↩️ Letzten Schritt weg</button></div>
+    ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="muted" style="margin-bottom:8px">📥 = aufs Handy speichern · 💬 = verschicken (z. B. WhatsApp) · ✖ = löschen</div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button><button class="shr" data-shrpic="${i}" aria-label="Teilen">💬</button></figure>`).join("")}</div>` : ""}
+  </div>`;
+  initPaint(); paintSync();
+}
+/* Knöpfe richtig markieren + Hinweis */
+function paintSync() {
+  const m = PNT.mode;
+  document.querySelectorAll("[data-color]").forEach(b => b.setAttribute("aria-pressed", (m === "pen" || m === "fill") && b.dataset.color === PNT.c));
+  document.querySelectorAll("[data-mode]").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === m));
+  document.querySelectorAll("[data-width]").forEach(b => b.setAttribute("aria-pressed", (m === "pen" || m === "erase") && Number(b.dataset.width) === PNT.w));
+  document.querySelectorAll("[data-stamp]").forEach(b => b.setAttribute("aria-pressed", m === "stamp" && b.dataset.stamp === PNT.stamp));
+  const h = $("#paintHint");
+  if (h) h.innerHTML = m === "erase" ? "🧽 Schwamm: Wische über das, was weg soll." : m === "fill" ? "🪣 Füllen: Farbe wählen und in eine Fläche tippen." : m === "stamp" ? `<div class="row" style="flex-wrap:wrap"><span class="sp">Tippe ins Bild, um ${PNT.stamp} zu stempeln. Stempel antippen = verschieben, mit zwei Fingern größer ziehen.</span><button class="tool" data-act="stamp-smaller" aria-label="kleiner">➖</button><button class="tool" data-act="stamp-bigger" aria-label="größer">➕</button></div>` : "🖌️ Pinsel: Farbe und Größe wählen und losmalen.";
+  if (PAINT && PAINT.draw) PAINT.draw();
+}
+
+function initPaint() {
+  const cv = $("#paintCv"), ctx = cv.getContext("2d"), doc = PDOC;
+  const base = document.createElement("canvas"), bctx = base.getContext("2d", { willReadFrequently: true });
+  const line = document.createElement("canvas"), lctx = line.getContext("2d", { willReadFrequently: true });
+  let dpr = 1, W = 0, H = 0, ox = 0, oy = 0, pw = 1, ph = 1, bw = 1, bh = 1, lineMask = null;
+  const V = PAINT = { cv, sel: null, cur: null };
+  const stampPx = s => pw * 0.11 * (s.s || 1);
+  const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left - ox) / pw, (e.clientY - r.top - oy) / ph]; };
+
+  function size() {
+    const r = cv.getBoundingClientRect();
+    dpr = Math.min(devicePixelRatio || 1, 2.5);
+    W = r.width; H = r.height;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    pw = Math.max(10, Math.min(W - 6, (H - 6) / doc.aspect)); ph = pw * doc.aspect;
+    ox = (W - pw) / 2; oy = (H - ph) / 2;
+    bw = Math.max(1, Math.round(pw * dpr)); bh = Math.max(1, Math.round(ph * dpr));
+    base.width = line.width = bw; base.height = line.height = bh;
+    buildLines(); rebuild(); draw();
+  }
+  /* Ausmalbild als Linien-Ebene (verdeckte Linien entfernt) + Maske für den Füll-Eimer */
+  function buildLines() {
+    lineMask = new Uint8Array(bw * bh);
+    lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.clearRect(0, 0, bw, bh);
+    const t = doc.tpl && TPL_BY[doc.tpl];
+    if (!t) return;
+    lctx.fillStyle = "#fff"; lctx.fillRect(0, 0, bw, bh);
+    const s = Math.min(bw / 300, bh / 400) * 0.96;
+    lctx.setTransform(s, 0, 0, s, (bw - 300 * s) / 2, (bh - 400 * s) / 2);
+    lctx.lineJoin = lctx.lineCap = "round"; lctx.strokeStyle = "#23324a"; lctx.lineWidth = 5;
+    for (const f of t.s) { const p = new Path2D(shapeD(f)); if (tplClosed(f)) { lctx.fillStyle = "#fff"; lctx.fill(p); } lctx.stroke(p); }
+    lctx.setTransform(1, 0, 0, 1, 0, 0);
+    const img = lctx.getImageData(0, 0, bw, bh), d = img.data;
+    for (let i = 0, k = 0; i < d.length; i += 4, k++) {
+      const a = 255 - Math.round((d[i] + d[i + 1] + d[i + 2]) / 3); // dunkel = Linie
+      d[i] = 35; d[i + 1] = 50; d[i + 2] = 74; d[i + 3] = a;
+      if (a > 70) lineMask[k] = 1;
+    }
+    lctx.putImageData(img, 0, 0);
+  }
+  /* Füll-Eimer: zusammenhängende, ähnlich gefärbte Fläche, begrenzt durch die Ausmalbild-Linien */
+  function floodFill(data, p, hex) {
+    let x = Math.floor(p[0] * bw), y = Math.floor(p[1] * bh);
+    if (x < 0 || y < 0 || x >= bw || y >= bh) return;
+    if (lineMask[y * bw + x]) { // auf eine Linie getippt: nächstes freies Pixel suchen
+      let found = false;
+      for (let r = 1; r <= 8 && !found; r++) for (let dy = -r; dy <= r && !found; dy++) for (let dx = -r; dx <= r && !found; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < bw && yy < bh && !lineMask[yy * bw + xx]) { x = xx; y = yy; found = true; } }
+      if (!found) return;
+    }
+    const cr = parseInt(hex.slice(1, 3), 16), cg = parseInt(hex.slice(3, 5), 16), cb = parseInt(hex.slice(5, 7), 16);
+    const i0 = (y * bw + x) * 4, tr = data[i0], tg = data[i0 + 1], tb = data[i0 + 2];
+    if (Math.abs(tr - cr) + Math.abs(tg - cg) + Math.abs(tb - cb) < 8) return;
+    const seen = new Uint8Array(bw * bh), stack = new Int32Array(bw * bh);
+    let sp = 0; stack[sp++] = y * bw + x; seen[y * bw + x] = 1;
+    while (sp) {
+      const k = stack[--sp], i = k * 4;
+      data[i] = cr; data[i + 1] = cg; data[i + 2] = cb; data[i + 3] = 255;
+      const kx = k % bw;
+      const nb = [kx > 0 ? k - 1 : -1, kx < bw - 1 ? k + 1 : -1, k >= bw ? k - bw : -1, k + bw < bw * bh ? k + bw : -1];
+      for (const n of nb) {
+        if (n < 0 || seen[n]) continue;
+        seen[n] = 1;
+        if (lineMask[n]) { const j = n * 4; data[j] = cr; data[j + 1] = cg; data[j + 2] = cb; data[j + 3] = 255; continue; } // Linienrand mitfärben (kein weißer Saum)
+        const j = n * 4;
+        if (Math.abs(data[j] - tr) + Math.abs(data[j + 1] - tg) + Math.abs(data[j + 2] - tb) > 90) continue;
+        stack[sp++] = n;
+      }
+    }
+  }
+  function strokeOn(c, s, sc) { // Strich auf eine Fläche malen (sc = Pixel pro CSS-Pixel)
+    c.strokeStyle = c.fillStyle = s.c; c.lineWidth = s.w * sc; c.lineCap = c.lineJoin = "round";
+    polyline(c, s.pts.map(([x, y]) => [x * pw * sc, y * ph * sc]), 0, s.w * sc);
+  }
+  function rebuild() { // base neu aufbauen: Striche und Füllungen der Reihe nach
+    bctx.setTransform(1, 0, 0, 1, 0, 0);
+    bctx.fillStyle = "#fff"; bctx.fillRect(0, 0, bw, bh);
+    let img = null;
+    for (const s of doc.shapes) {
+      if (s.stamp) continue;
+      if (s.fill) { if (!img) img = bctx.getImageData(0, 0, bw, bh); floodFill(img.data, s.p, s.fill); continue; }
+      if (img) { bctx.putImageData(img, 0, 0); img = null; }
+      strokeOn(bctx, s, dpr);
+    }
+    if (img) bctx.putImageData(img, 0, 0);
+  }
+  function drawStamps(c, sc, offx, offy) {
+    c.textAlign = "center"; c.textBaseline = "middle";
+    for (const s of doc.shapes) if (s.stamp) { c.font = `${Math.round(stampPx(s) * sc)}px sans-serif`; c.fillText(s.stamp, offx + s.p[0] * pw * sc, offy + s.p[1] * ph * sc); }
+  }
+  function draw(clean) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = "#dfe8f2"; ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(base, ox, oy, pw, ph);
+    if (V.cur) { ctx.save(); ctx.translate(ox, oy); strokeOn(ctx, V.cur, 1); ctx.restore(); }
+    ctx.drawImage(line, ox, oy, pw, ph);
+    drawStamps(ctx, 1, ox, oy);
+    const sel = doc.shapes[V.sel];
+    if (!clean && sel && sel.stamp && PNT.mode === "stamp") {
+      const r = stampPx(sel) * 0.62;
+      ctx.save(); ctx.setLineDash([6, 5]); ctx.lineWidth = 2; ctx.strokeStyle = "#3a9cff";
+      ctx.strokeRect(ox + sel.p[0] * pw - r, oy + sel.p[1] * ph - r, 2 * r, 2 * r); ctx.restore();
+    }
+  }
+  /* fertiges Bild (ohne Auswahl), höchstens 1280 Pixel breit */
+  V.snapshot = (type = "image/png", q) => {
+    const c = document.createElement("canvas"), x = c.getContext("2d");
+    c.width = bw; c.height = bh;
+    x.drawImage(base, 0, 0); x.drawImage(line, 0, 0); drawStamps(x, dpr, 0, 0);
+    if (bw <= 1280) return c.toDataURL(type, q);
+    const w = 1280, h = Math.round((bh / bw) * w), c2 = document.createElement("canvas");
+    c2.width = w; c2.height = h; c2.getContext("2d").drawImage(c, 0, 0, w, h);
+    return c2.toDataURL(type, q);
+  };
+  V.draw = draw; V.resize = size;
+  V.undo = () => { const s = doc.shapes.pop(); if (s && !s.stamp) rebuild(); V.sel = null; draw(); };
+  V.scaleSel = f => { const s = doc.shapes[V.sel]; if (!s || !s.stamp) return toast("Tippe zuerst auf einen Stempel im Bild."); s.s = Math.max(0.3, Math.min(5, (s.s || 1) * f)); draw(); };
+
+  const ptrs = new Map();
+  let pinch = null, drag = null;
+  const hitStamp = p => { for (let k = doc.shapes.length - 1; k >= 0; k--) { const s = doc.shapes[k]; if (!s.stamp) continue; if (Math.hypot((p[0] - s.p[0]) * pw, (p[1] - s.p[1]) * ph) <= stampPx(s) * 0.6) return k; } return -1; };
+  const inPaper = p => p[0] >= 0 && p[1] >= 0 && p[0] <= 1 && p[1] <= 1;
+  cv.addEventListener("pointerdown", e => {
+    e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (x) {}
+    ptrs.set(e.pointerId, pos(e));
+    const p = pos(e);
+    if (PNT.mode === "stamp") {
+      if (ptrs.size === 2 && V.sel != null) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot((a[0] - b[0]) * pw, (a[1] - b[1]) * ph) || 1, s: doc.shapes[V.sel].s || 1 }; drag = null; return; }
+      if (ptrs.size > 1) return;
+      const k = hitStamp(p);
+      if (k >= 0) { V.sel = k; drag = { dx: doc.shapes[k].p[0] - p[0], dy: doc.shapes[k].p[1] - p[1] }; draw(); return; }
+      if (!inPaper(p)) return;
+      doc.shapes.push({ stamp: PNT.stamp, p, s: 1 }); V.sel = doc.shapes.length - 1; drag = null;
+      tone([880], "sine", 0, 0.1, 0.05); draw(); return;
+    }
+    if (ptrs.size > 1) { if (V.cur) { doc.shapes.pop(); V.cur = null; draw(); } return; } // zweiter Finger: Strich abbrechen
+    if (PNT.mode === "fill") {
+      if (!inPaper(p)) return;
+      doc.shapes.push({ fill: PNT.c, p });
+      const img = bctx.getImageData(0, 0, bw, bh); floodFill(img.data, p, PNT.c); bctx.putImageData(img, 0, 0);
+      tone([660], "sine", 0, 0.12, 0.05); draw(); return;
+    }
+    V.cur = PNT.mode === "erase" ? { c: "#ffffff", w: Math.round(PNT.w * 2.5), pts: [p] } : { c: PNT.c, w: PNT.w, pts: [p] };
+    doc.shapes.push(V.cur); draw();
+  });
+  cv.addEventListener("pointermove", e => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, pos(e));
+    if (PNT.mode === "stamp") {
+      const sel = doc.shapes[V.sel];
+      if (pinch && sel && ptrs.size >= 2) { const [a, b] = [...ptrs.values()]; sel.s = Math.max(0.3, Math.min(5, pinch.s * Math.hypot((a[0] - b[0]) * pw, (a[1] - b[1]) * ph) / pinch.d)); draw(); }
+      else if (drag && sel) { const p = pos(e); sel.p = [p[0] + drag.dx, p[1] + drag.dy]; draw(); }
+      return;
+    }
+    if (!V.cur) return;
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    for (const ev of evs) V.cur.pts.push(pos(ev));
+    draw();
+  });
+  const up = e => {
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinch = null;
+    if (!ptrs.size) drag = null;
+    if (V.cur) { strokeOn(bctx, V.cur, dpr); V.cur = null; draw(); }
+  };
+  cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+  size();
+}
+
+/* ---------- Ausmalbild auswählen ---------- */
+function pickTemplate() {
+  const d = document.createElement("div");
+  d.className = "modal";
+  d.innerHTML = `<div class="modal-box tpl-box"><div class="row"><b style="font-size:22px" class="sp">🖍️ Ausmalbilder</b><button class="icon-btn" data-tpl-close aria-label="Schließen">✖</button></div>
+    <div class="tpl-grid"><button data-tpl=""><span class="blank">📄</span><small>Leeres Blatt</small></button>${TPLS.map(t => `<button data-tpl="${t.id}">${tplSvg(t)}<small>${t.n}</small></button>`).join("")}</div></div>`;
+  d.addEventListener("click", e => {
+    const b = e.target.closest("[data-tpl],[data-tpl-close]");
+    if (!b && e.target !== d) return;
+    e.stopPropagation(); d.remove();
+    if (!b || b.hasAttribute("data-tpl-close")) return;
+    const id = b.dataset.tpl;
+    const start = () => { newDrawing(id); PNT.mode = id ? "fill" : "pen"; if (PNT.c === "#ffffff") PNT.c = "#3a9cff"; renderPaint(); if (id) toast("🪣 Farbe wählen und in die Flächen tippen!"); };
+    if (PDOC && PDOC.shapes.length) ask("Neues Bild anfangen?<br><small>Das jetzige Bild ist dann weg – vorher 💾 speichern!</small>", "Ja, neues Bild", "Nein", "🖍️").then(ok => ok && start());
+    else start();
+  });
+  document.body.appendChild(d);
+}
+function paintFull(on) {
+  PAINT_FULL = on;
+  try {
+    if (on && document.documentElement.requestFullscreen && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  } catch (e) {}
+  document.body.classList.toggle("noscroll", on);
+  renderPaint();
+}
+
+/* ---------- Bild speichern / schicken ---------- */
+/* Bild-Datei sofort (ohne Warten) erzeugen – sonst verbietet Android das Teilen (1.5.1) */
+function picFile(src) {
+  const [head, data] = src.split(","), type = (head.match(/data:(.*?);/) || [, "image/png"])[1];
+  const bin = atob(data), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  const d = new Date(), name = `Lern-App-Bild-${dayStr(d)}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}.${type === "image/png" ? "png" : "jpg"}`;
+  return new File([u], name, { type });
+}
+function downloadFile(file) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file); a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+/* share = true: Teilen-Menü (WhatsApp …); sonst Datei in „Downloads“ speichern */
+function exportPic(src, share = false) {
+  let file;
+  try { file = picFile(src); } catch (e) { toast("Das Bild konnte nicht vorbereitet werden."); return Promise.resolve(false); }
+  if (!share) { downloadFile(file); return Promise.resolve(true); }
+  const data = { files: [file], title: "" }; // nur das Bild (mit Text: WhatsApp „Teilen fehlgeschlagen“, 1.6); leerer Titel (1.7)
+  const canFiles = navigator.share && navigator.canShare && navigator.canShare({ files: [file] });
+  if (!canFiles) {
+    downloadFile(file);
+    toast("Dieses Handy kann Bilder hier nicht direkt verschicken. Das Bild liegt in „Downloads“ – in WhatsApp über 📎 anhängen.");
+    return Promise.resolve(false);
+  }
+  return navigator.share(data).then(() => { setTimeout(() => toast("Hat WhatsApp „Teilen fehlgeschlagen“ gemeldet? Dann 💾 Speichern und in WhatsApp über 📎 → Galerie anhängen."), 1500); return true; }).catch(e => {
+    if (e && e.name === "AbortError") return false;
+    return ask("Bild verschicken?", "💬 Jetzt schicken", "Abbrechen", "📨").then(ok => {
+      if (!ok) return false;
+      return navigator.share({ files: [file] }).then(() => true).catch(e2 => {
+        if (e2 && e2.name === "AbortError") return false;
+        downloadFile(file);
+        toast(`Schicken klappt gerade nicht (${(e2 && e2.name) || "Fehler"}). Das Bild liegt in „Downloads“ – in WhatsApp über 📎 anhängen.`);
+        return false;
+      });
+    });
+  });
+}
+function savePaint() { // in „Meine Bilder“ und als Bild-Datei aufs Handy (Ordner „Downloads“)
+  if (!PAINT || !PDOC.shapes.length) return toast("Male zuerst etwas! 🖍️");
+  const snap = PAINT.snapshot("image/png"), img = new Image();
+  img.onload = () => {
+    const w = 480, h = Math.round((img.height / img.width) * w), c = document.createElement("canvas");
+    c.width = w; c.height = h; c.getContext("2d").drawImage(img, 0, 0, w, h);
+    const pics = loadPics(); pics.unshift(c.toDataURL("image/jpeg", 0.72));
+    while (pics.length > 12) pics.pop();
+    try { localStorage.setItem(picKey(), JSON.stringify(pics)); } catch (e) { pics.pop(); try { localStorage.setItem(picKey(), JSON.stringify(pics.slice(0, 6))); } catch (e2) {} }
+    if (!PAINT_FULL) renderPaint();
+  };
+  img.src = snap;
+  exportPic(snap).then(ok => { if (ok) toast("Gespeichert! 🖼️ Unter „Meine Bilder“ und auf dem Handy im Ordner „Downloads“."); });
+  confetti(14); tone([523, 659, 784]);
+}
+
+/* Klicks im Malbereich (aus dem allgemeinen Klick-Verteiler) – true = erledigt */
+function paintClick(ds, el, act) {
+  if (ds.color) { PNT.c = ds.color; if (PNT.mode !== "fill") PNT.mode = "pen"; paintSync(); return true; }
+  if (ds.mode) { PNT.mode = ds.mode; paintSync(); return true; }
+  if (ds.width) { PNT.w = Number(ds.width); if (PNT.mode === "stamp" || PNT.mode === "fill") PNT.mode = "pen"; paintSync(); return true; }
+  if (ds.stamp) { PNT.stamp = ds.stamp; PNT.mode = "stamp"; paintSync(); return true; }
+  if (ds.delpic !== undefined) { ask("Dieses Bild löschen?", "Löschen", "Nein", "🗑️").then(ok => { if (!ok) return; const p = loadPics(); p.splice(Number(ds.delpic), 1); localStorage.setItem(picKey(), JSON.stringify(p)); renderPaint(); }); return true; }
+  if (ds.shrpic !== undefined) { const src = loadPics()[Number(ds.shrpic)]; if (src) exportPic(src, true); return true; }
+  if (ds.exppic !== undefined) { const src = loadPics()[Number(ds.exppic)]; if (src) exportPic(src); return true; }
+  switch (act) {
+    case "paint-undo": if (PAINT) PAINT.undo(); return true;
+    case "paint-clear": if (PDOC && PDOC.shapes.length) ask("Alles wegmachen und neu anfangen?", "Ja, alles weg", "Nein", "🗑️").then(ok => { if (ok) { PDOC.shapes = []; renderPaint(); } }); return true;
+    case "paint-share": if (!PAINT || !PDOC.shapes.length) { toast("Male zuerst etwas! 🖍️"); return true; } exportPic(PAINT.snapshot("image/jpeg", 0.9), true); return true;
+    case "paint-save": savePaint(); return true;
+    case "paint-tpl": pickTemplate(); return true;
+    case "paint-full": pushLayer(() => paintFull(false)); paintFull(true); return true;
+    case "paint-small": back(); return true;
+    case "stamp-bigger": if (PAINT) PAINT.scaleSel(1.25); return true;
+    case "stamp-smaller": if (PAINT) PAINT.scaleSel(0.8); return true;
+  }
+  return false;
+}
+
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.7.0";
+const APP_VER = "1.8.0";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */
@@ -1840,168 +2272,6 @@ async function shareApp() {
   try { await navigator.clipboard.writeText(url); toast("Link kopiert – jetzt z. B. in WhatsApp einfügen."); } catch (e) { toast(url); }
 }
 
-/* ======================= MALEN ======================= */
-const PAINT_COLORS = ["#23324a", "#f2554f", "#ff9532", "#ffbf1f", "#5ec94d", "#1fbf9f", "#3a9cff", "#9a78ff", "#ff64ab", "#8b5a2b", "#ffffff"];
-const STAMPS = ["⭐", "❤️", "🌸", "🐞", "☀️", "🌈", "🦋", "🐟"];
-let PNT = { mode: "pen", c: "#3a9cff", w: 10, stamp: null }; // mode: pen | erase | stamp
-const picKey = () => "lernapp_bilder_" + G.cur;
-function loadPics() { try { return JSON.parse(localStorage.getItem(picKey()) || "[]"); } catch (e) { return []; } }
-function renderPaint() {
-  const pics = loadPics();
-  app().innerHTML = `<div class="wrap">
-    <div class="head"><button class="icon-btn" data-act="back" aria-label="Zurück">⬅️</button><div class="t">🎨 Malen</div></div>
-    <div class="paint-main">
-      <button class="btn green" data-act="paint-save">💾 Speichern</button>
-      <button class="btn wa" data-act="paint-share">💬 Schicken</button>
-      <button class="btn ghost" data-act="paint-clear">🗑️ Neu</button>
-    </div>
-    <div class="paint-tools">${PAINT_COLORS.map(c => `<button class="sw" data-color="${c}" style="background:${c}" aria-label="Farbe"></button>`).join("")}</div>
-    <div class="paint-tools"><button class="tool wide" data-mode="pen">🖌️ Pinsel</button><button class="tool wide" data-mode="erase">🧽 Schwamm</button>
-      <span class="sizes">${[[5, 8], [10, 14], [22, 22], [36, 30]].map(([w, px]) => `<button class="tool" data-width="${w}" aria-label="Größe"><i style="width:${px}px;height:${px}px"></i></button>`).join("")}</span></div>
-    <div class="paint-tools">${STAMPS.map(s => `<button class="tool" data-stamp="${s}">${s}</button>`).join("")}</div>
-    <div class="muted" id="paintHint" style="margin:-2px 0 6px"></div>
-    <canvas class="paint" id="paintCv"></canvas>
-    <div class="padbar"><button class="btn ghost small" data-act="paint-undo">↩️ Letzten Strich weg</button></div>
-    ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="muted" style="margin-bottom:8px">📥 = aufs Handy speichern · 💬 = verschicken (z. B. WhatsApp) · ✖ = löschen</div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button><button class="shr" data-shrpic="${i}" aria-label="Teilen">💬</button></figure>`).join("")}</div>` : ""}
-  </div>`;
-  initPaint(); paintSync();
-}
-/* Knöpfe beim Malen richtig markieren */
-function paintSync() {
-  const m = PNT.mode;
-  document.querySelectorAll("[data-color]").forEach(b => b.setAttribute("aria-pressed", m === "pen" && b.dataset.color === PNT.c));
-  document.querySelectorAll("[data-mode]").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === m));
-  document.querySelectorAll("[data-width]").forEach(b => b.setAttribute("aria-pressed", m !== "stamp" && Number(b.dataset.width) === PNT.w));
-  document.querySelectorAll("[data-stamp]").forEach(b => b.setAttribute("aria-pressed", m === "stamp" && b.dataset.stamp === PNT.stamp));
-  const h = $("#paintHint");
-  if (h) h.innerHTML = m === "erase" ? "🧽 Schwamm: Wische über das, was weg soll. Größe oben auswählen." : m === "stamp" ? `<div class="row" style="flex-wrap:wrap"><span class="sp">Tippe ins Bild, um ${PNT.stamp} zu stempeln. Stempel antippen = auswählen und mit dem Finger verschieben, mit zwei Fingern größer ziehen.</span><button class="tool" data-act="stamp-smaller" aria-label="kleiner">➖</button><button class="tool" data-act="stamp-bigger" aria-label="größer">➕</button></div>` : "🖌️ Pinsel: Farbe und Größe auswählen und losmalen.";
-  if (PAINT && PAINT.draw) PAINT.draw();
-}
-let PAINT = null;
-function initPaint() {
-  const cv = $("#paintCv"), ctx = cv.getContext("2d");
-  const old = PAINT && PAINT.shapes ? PAINT.shapes : [];
-  PAINT = { cv, ctx, shapes: old, cur: null, sel: null };
-  const size = () => { const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1; cv.width = r.width * dpr; cv.height = r.height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); PAINT.W = r.width; PAINT.H = r.height; draw(); };
-  const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / PAINT.W, (e.clientY - r.top) / PAINT.H]; };
-  const stampPx = s => PAINT.W * 0.11 * (s.s || 1);
-  function draw(clean) {
-    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, PAINT.W, PAINT.H);
-    ctx.lineCap = ctx.lineJoin = "round";
-    for (const s of PAINT.shapes) {
-      if (s.stamp) { ctx.font = `${Math.round(stampPx(s))}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(s.stamp, s.p[0] * PAINT.W, s.p[1] * PAINT.H); continue; }
-      ctx.strokeStyle = ctx.fillStyle = s.c; ctx.lineWidth = s.w;
-      polyline(ctx, s.pts.map(([x, y]) => [x * PAINT.W, y * PAINT.H]), 0, s.w);
-    }
-    const sel = PAINT.shapes[PAINT.sel];
-    if (!clean && sel && sel.stamp && PNT.mode === "stamp") { // ausgewählter Stempel: gestrichelter Rahmen
-      const r = stampPx(sel) * 0.62;
-      ctx.save(); ctx.setLineDash([6, 5]); ctx.lineWidth = 2; ctx.strokeStyle = "#3a9cff";
-      ctx.strokeRect(sel.p[0] * PAINT.W - r, sel.p[1] * PAINT.H - r, 2 * r, 2 * r); ctx.restore();
-    }
-  }
-  /* Bild ohne Auswahl-Rahmen, verkleinert (max. 1280 Pixel breit) */
-  PAINT.snapshot = (type = "image/png", q) => {
-    draw(true);
-    const w = Math.min(cv.width, 1280), h = Math.round((cv.height / cv.width) * w), c = document.createElement("canvas");
-    c.width = w; c.height = h; c.getContext("2d").drawImage(cv, 0, 0, w, h);
-    draw();
-    return c.toDataURL(type, q);
-  };
-  PAINT.draw = draw; PAINT.resize = size;
-  PAINT.scaleSel = f => { const s = PAINT.shapes[PAINT.sel]; if (!s || !s.stamp) return toast("Tippe zuerst auf einen Stempel im Bild."); s.s = Math.max(0.3, Math.min(5, (s.s || 1) * f)); draw(); };
-  const ptrs = new Map(); // Finger auf der Malfläche
-  let pinch = null, drag = null;
-  const hitStamp = p => { for (let k = PAINT.shapes.length - 1; k >= 0; k--) { const s = PAINT.shapes[k]; if (!s.stamp) continue; const r = stampPx(s) * 0.6; if (Math.hypot((p[0] - s.p[0]) * PAINT.W, (p[1] - s.p[1]) * PAINT.H) <= r) return k; } return -1; };
-  cv.addEventListener("pointerdown", e => {
-    e.preventDefault(); cv.setPointerCapture(e.pointerId);
-    ptrs.set(e.pointerId, pos(e));
-    if (PNT.mode === "stamp") {
-      if (ptrs.size === 2 && PAINT.sel != null) { // zwei Finger: Stempel größer/kleiner ziehen
-        const [a, b] = [...ptrs.values()];
-        pinch = { d: Math.hypot((a[0] - b[0]) * PAINT.W, (a[1] - b[1]) * PAINT.H) || 1, s: PAINT.shapes[PAINT.sel].s || 1 };
-        drag = null; return;
-      }
-      if (ptrs.size > 1) return;
-      const p = pos(e), k = hitStamp(p);
-      if (k >= 0) { PAINT.sel = k; drag = { k, dx: PAINT.shapes[k].p[0] - p[0], dy: PAINT.shapes[k].p[1] - p[1] }; draw(); return; }
-      PAINT.shapes.push({ stamp: PNT.stamp, p, s: 1 }); PAINT.sel = PAINT.shapes.length - 1; drag = null;
-      tone([880], "sine", 0, 0.1, 0.05); draw(); return;
-    }
-    if (ptrs.size > 1) return;
-    PAINT.cur = PNT.mode === "erase" ? { c: "#ffffff", w: Math.round(PNT.w * 2.5), pts: [pos(e)] } : { c: PNT.c, w: PNT.w, pts: [pos(e)] };
-    PAINT.shapes.push(PAINT.cur); draw();
-  });
-  cv.addEventListener("pointermove", e => {
-    if (!ptrs.has(e.pointerId)) return;
-    ptrs.set(e.pointerId, pos(e));
-    if (PNT.mode === "stamp") {
-      const sel = PAINT.shapes[PAINT.sel];
-      if (pinch && sel && ptrs.size >= 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot((a[0] - b[0]) * PAINT.W, (a[1] - b[1]) * PAINT.H); sel.s = Math.max(0.3, Math.min(5, pinch.s * d / pinch.d)); draw(); }
-      else if (drag && sel) { const p = pos(e); sel.p = [p[0] + drag.dx, p[1] + drag.dy]; draw(); }
-      return;
-    }
-    if (!PAINT.cur) return;
-    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
-    for (const ev of evs) PAINT.cur.pts.push(pos(ev));
-    draw();
-  });
-  const up = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) drag = null; PAINT.cur = null; };
-  cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
-  size();
-}
-/* Bild aufs Handy: Teilen-Menü (z. B. Google Fotos oder ein Ordner in „Dateien“), sonst Download-Ordner */
-/* Bild-Datei sofort (ohne Warten) erzeugen – sonst verbietet Android das Teilen („Fehler“, 1.5.1) */
-function picFile(src) {
-  const [head, data] = src.split(","), type = (head.match(/data:(.*?);/) || [, "image/png"])[1];
-  const bin = atob(data), u = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-  const d = new Date(), name = `Lern-App-Bild-${dayStr(d)}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}.${type === "image/png" ? "png" : "jpg"}`;
-  return new File([u], name, { type });
-}
-function downloadFile(file) {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(file); a.download = file.name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-}
-/* share = true: Teilen-Menü (WhatsApp …); sonst Datei in „Downloads“ speichern */
-function exportPic(src, share = false) {
-  let file;
-  try { file = picFile(src); } catch (e) { toast("Das Bild konnte nicht vorbereitet werden."); return Promise.resolve(false); }
-  if (!share) { downloadFile(file); return Promise.resolve(true); }
-  const data = { files: [file], title: "" }; // nur das Bild (mit Text: WhatsApp „Teilen fehlgeschlagen“, 1.6); leerer Titel half laut Berichten bei WhatsApp (1.7)
-  const canFiles = navigator.share && navigator.canShare && navigator.canShare({ files: [file] });
-  if (!canFiles) {
-    downloadFile(file);
-    toast("Dieses Handy kann Bilder hier nicht direkt verschicken. Das Bild liegt in „Downloads“ – in WhatsApp über 📎 anhängen.");
-    return Promise.resolve(false);
-  }
-  return navigator.share(data).then(() => { setTimeout(() => toast("Hat WhatsApp „Teilen fehlgeschlagen“ gemeldet? Dann 💾 Speichern und in WhatsApp über 📎 → Galerie anhängen."), 1500); return true; }).catch(e => {
-    if (e && e.name === "AbortError") return false; // selbst abgebrochen
-    // zweiter Versuch mit neuem Antippen (Android erlaubt Teilen nur direkt nach einem Tippen)
-    return ask("Bild verschicken?", "💬 Jetzt schicken", "Abbrechen", "📨").then(ok => {
-      if (!ok) return false;
-      return navigator.share({ files: [file] }).then(() => true).catch(e2 => {
-        if (e2 && e2.name === "AbortError") return false;
-        downloadFile(file);
-        toast(`Schicken klappt gerade nicht (${(e2 && e2.name) || "Fehler"}). Das Bild liegt in „Downloads“ – in WhatsApp über 📎 anhängen.`);
-        return false;
-      });
-    });
-  });
-}
-function savePaint() { // in „Meine Bilder“ und als Bild-Datei aufs Handy (Ordner „Downloads“)
-  if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️");
-  const snap = PAINT.snapshot("image/png"), src = PAINT.cv, w = 480, h = Math.round((src.height / src.width) * w), c = document.createElement("canvas");
-  c.width = w; c.height = h; PAINT.draw(true); c.getContext("2d").drawImage(src, 0, 0, w, h);
-  const pics = loadPics(); pics.unshift(c.toDataURL("image/jpeg", 0.72));
-  while (pics.length > 12) pics.pop();
-  try { localStorage.setItem(picKey(), JSON.stringify(pics)); } catch (e) { pics.pop(); try { localStorage.setItem(picKey(), JSON.stringify(pics.slice(0, 6))); } catch (e2) {} }
-  exportPic(snap).then(ok => { if (ok) toast("Gespeichert! 🖼️ Unter „Meine Bilder“ und auf dem Handy im Ordner „Downloads“."); });
-  PAINT.shapes = []; confetti(14); tone([523, 659, 784]); renderPaint();
-}
-
 /* ======================= ÜBEN ======================= */
 let SES = null;
 const PRAISE = ["Super!", "Toll gemacht!", "Klasse!", "Richtig!", "Prima!", "Spitze!", "Genau!", "Wow, sehr gut!", "Perfekt!"];
@@ -2344,6 +2614,7 @@ document.addEventListener("click", e => {
   const ds = el.dataset;
   if (ds.opt !== undefined && SES) return choose(Number(ds.opt), el);
   if (ds.k !== undefined && SES) return numKey(ds.k);
+  if (VIEW.v === "paint" && !SES && paintClick(ds, el, ds.act)) return;
   if (ds.unit) return startUnit(ds.unit);
   if (ds.area) return go({ v: "area", a: ds.area });
   if (ds.go) return go({ v: ds.go });
@@ -2354,13 +2625,6 @@ document.addEventListener("click", e => {
   if (ds.toggle) { G.set[ds.toggle] = !G.set[ds.toggle]; save(); el.setAttribute("aria-pressed", G.set[ds.toggle]); return; }
   if (ds.rate) { G.set.rate = Number(ds.rate); save(); renderSet(); say("So schnell spreche ich jetzt."); return; }
   if (ds.goal) { G.set.goal = Number(ds.goal); save(); return renderSet(); }
-  if (ds.color) { PNT.c = ds.color; PNT.mode = "pen"; return paintSync(); }
-  if (ds.mode) { PNT.mode = ds.mode; return paintSync(); }
-  if (ds.width) { PNT.w = Number(ds.width); if (PNT.mode === "stamp") PNT.mode = "pen"; return paintSync(); }
-  if (ds.stamp) { PNT.stamp = ds.stamp; PNT.mode = "stamp"; return paintSync(); }
-  if (ds.delpic !== undefined) { ask("Dieses Bild löschen?", "Löschen", "Nein", "🗑️").then(ok => { if (!ok) return; const p = loadPics(); p.splice(Number(ds.delpic), 1); localStorage.setItem(picKey(), JSON.stringify(p)); renderPaint(); }); return; }
-  if (ds.shrpic !== undefined) { const src = loadPics()[Number(ds.shrpic)]; if (src) exportPic(src, true); return; }
-  if (ds.exppic !== undefined) { const src = loadPics()[Number(ds.exppic)]; if (src) exportPic(src); return; }
   switch (ds.act) {
     case "back": return back();
     case "who": G.cur = null; save(); STACK.length = 0; VIEW = { v: "home" }; return render();
@@ -2390,14 +2654,7 @@ document.addEventListener("click", e => {
     case "test-voice": return say(`Hallo ${P() ? P().name : ""}! Ich bin Lumi, die Lern-Eule.`);
     case "backup": return backup();
     case "restore": return $("#restoreFile").click();
-    case "paint-undo": if (PAINT) { PAINT.shapes.pop(); PAINT.draw(); } return;
-    case "paint-clear": if (PAINT && PAINT.shapes.length) ask("Alles wegmachen und neu anfangen?", "Ja, alles weg", "Nein", "🧽").then(ok => { if (ok) { PAINT.shapes = []; PAINT.draw(); } }); return;
-    case "paint-export": if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️"); return exportPic(PAINT.snapshot("image/png"));
-    case "paint-share": if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️"); return exportPic(PAINT.snapshot("image/jpeg", 0.9), true);
-    case "stamp-bigger": return PAINT && PAINT.scaleSel(1.25);
-    case "stamp-smaller": return PAINT && PAINT.scaleSel(0.8);
     case "share-app": return shareApp();
-    case "paint-save": return savePaint();
   }
   if (!SES) return;
   const t = curT();
