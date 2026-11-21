@@ -92,8 +92,7 @@ function initPaint() {
     lctx.fillStyle = "#fff"; lctx.fillRect(0, 0, bw, bh);
     const s = Math.min(bw / 300, bh / 400) * 0.96;
     lctx.setTransform(s, 0, 0, s, (bw - 300 * s) / 2, (bh - 400 * s) / 2);
-    lctx.lineJoin = lctx.lineCap = "round"; lctx.strokeStyle = "#23324a"; lctx.lineWidth = 5;
-    for (const f of t.s) { const p = new Path2D(shapeD(f)); if (tplClosed(f)) { lctx.fillStyle = "#fff"; lctx.fill(p); } lctx.stroke(p); }
+    tplDraw(lctx, t);
     lctx.setTransform(1, 0, 0, 1, 0, 0);
     const img = lctx.getImageData(0, 0, bw, bh), d = img.data;
     for (let i = 0, k = 0; i < d.length; i += 4, k++) {
@@ -236,8 +235,12 @@ function pickTemplate() {
   const d = document.createElement("div");
   d.className = "modal";
   d.innerHTML = `<div class="modal-box tpl-box"><div class="row"><b style="font-size:22px" class="sp">🖍️ Ausmalbilder</b><button class="icon-btn" data-tpl-close aria-label="Schließen">✖</button></div>
-    <div class="tpl-grid"><button data-tpl=""><span class="blank">📄</span><small>Leeres Blatt</small></button>${TPLS.map(t => `<button data-tpl="${t.id}">${tplSvg(t)}<small>${t.n}</small></button>`).join("")}</div></div>`;
+    <div class="chips" style="margin:8px 0 0;flex-wrap:wrap;overflow:visible">${TPL_CATS.map(([k, n]) => `<button class="chip" data-tcat="${k}" aria-pressed="${k === TPL_CAT}">${n}</button>`).join("")}</div>
+    <div class="tpl-grid" id="tplGrid"></div></div>`;
+  const fill = () => { d.querySelector("#tplGrid").innerHTML = `<button data-tpl=""><span class="blank">📄</span><small>Leeres Blatt</small></button>` + TPLS.filter(t => t.k === TPL_CAT).map(t => `<button data-tpl="${t.id}">${tplSvg(t)}<small>${t.n}</small></button>`).join(""); d.querySelectorAll("[data-tcat]").forEach(b => b.setAttribute("aria-pressed", b.dataset.tcat === TPL_CAT)); };
   d.addEventListener("click", e => {
+    const cb = e.target.closest("[data-tcat]");
+    if (cb) { e.stopPropagation(); TPL_CAT = cb.dataset.tcat; fill(); d.querySelector("#tplGrid").scrollTop = 0; return; }
     const b = e.target.closest("[data-tpl],[data-tpl-close]");
     if (!b && e.target !== d) return;
     e.stopPropagation(); d.remove();
@@ -248,7 +251,9 @@ function pickTemplate() {
     else start();
   });
   document.body.appendChild(d);
+  fill();
 }
+let TPL_CAT = "tiere";
 function paintFull(on) {
   PAINT_FULL = on;
   try {
