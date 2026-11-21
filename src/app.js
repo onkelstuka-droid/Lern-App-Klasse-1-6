@@ -1,7 +1,7 @@
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.0.0";
+const APP_VER = "1.1.0";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */
@@ -10,7 +10,7 @@ function loadG() {
   try { const r = localStorage.getItem(STORE); if (r) o = JSON.parse(r) || {}; } catch (e) { o = {}; }
   o.profiles = Array.isArray(o.profiles) ? o.profiles : [];
   o.data = o.data || {};
-  o.set = Object.assign({ auto: true, sfx: true, voice: "", rate: 1, goal: 15 }, o.set || {});
+  o.set = Object.assign({ auto: true, sfx: true, voice: "", rate: 1, goal: 15, style: "lumi" }, o.set || {});
   return o;
 }
 let G = loadG();
@@ -91,10 +91,21 @@ function say(text, rate = 1) {
     const u = new SpeechSynthesisUtterance(speechText(text)), v = pickVoice();
     if (v) u.voice = v;
     u.lang = v ? v.lang : "de-DE";
-    u.rate = 0.9 * G.set.rate * rate;
+    const st = STYLE[G.set.style] || STYLE.lumi;
+    u.pitch = st.pitch;
+    u.rate = 0.9 * G.set.rate * rate * st.rate;
     speechSynthesis.speak(u);
   } catch (e) {}
 }
+/* Vorlese-Stimmen (Tonhöhe und Tempo der Handy-Stimme) */
+const STYLE = {
+  lumi: { e: "🦉", n: "Lumi", pitch: 1.1, rate: 1, hi: "Hallo! Ich bin Lumi, die Lern-Eule." },
+  papa: { e: "🐻", n: "Papa Bär", pitch: 0.55, rate: 0.9, hi: "Hallo! Ich bin Papa Bär. Brumm brumm!" },
+  maus: { e: "🐭", n: "Mäuschen", pitch: 1.9, rate: 1.08, hi: "Hallo! Ich bin das kleine Mäuschen. Piep piep!" },
+  robo: { e: "🤖", n: "Robo", pitch: 0.2, rate: 0.85, hi: "Hallo. Ich. Bin. Robo. Der Rechen-Roboter." },
+  opa: { e: "🐢", n: "Opa Kröte", pitch: 0.75, rate: 0.72, hi: "Hallo, mein Kind. Ich bin Opa Kröte. Wir haben viel Zeit." },
+  fee: { e: "🧚", n: "Fee Flora", pitch: 1.5, rate: 0.95, hi: "Hallo! Ich bin Fee Flora. Lass uns zaubern und lernen!" }
+};
 const stopSay = () => { try { speechSynthesis.cancel(); } catch (e) {} };
 
 /* ======================= SPRACHE: Spracherkennung (wie im Vokabelheft) ======================= */
@@ -419,6 +430,7 @@ function renderSet() {
     </div>
     <div class="sec"><h3>Hören und Sprechen</h3></div>
     <div class="card">
+      <div class="set-row" style="display:block"><span>Wer liest vor?</span><div class="seg" style="margin-top:8px">${Object.entries(STYLE).map(([k, v]) => `<button data-style="${k}" aria-pressed="${(s.style || "lumi") === k}" style="font-size:16px;height:auto;padding:6px 10px;display:flex;flex-direction:column;align-items:center"><span style="font-size:30px">${v.e}</span>${v.n}</button>`).join("")}</div></div>
       <div class="set-row"><span>Aufgaben automatisch vorlesen</span>${sw("auto", s.auto)}</div>
       <div class="set-row"><span>Töne</span>${sw("sfx", s.sfx)}</div>
       <div class="set-row"><span>Stimme</span><select id="voiceSel"><option value="">Automatisch</option>${VOICES.map(v => `<option value="${esc(v.name)}" ${v.name === s.voice ? "selected" : ""}>${esc(v.name)}</option>`).join("")}</select></div>
@@ -632,8 +644,15 @@ function finish(ok, extra = "") {
     if (t.type === "choice") document.querySelectorAll(".opt").forEach((b, i) => { if (SES.opts[i] === t.a) b.classList.add("ok"); b.disabled = true; });
     if (t.type === "trace" || t.type === "write") PADS && PADS.showSolution();
     showFb("bad", `<div class="msg"><span class="owl">🦉</span>Schau mal, so ist es richtig:</div><div class="sub sol">${answerText(t)}</div>${extra}${t.hint ? `<div class="sub">💡 ${esc(t.hint)}</div>` : ""}`);
-    say(t.type === "speak" ? t.word : t.type === "type" ? t.a : t.type === "num" ? t.a : t.ot === "emoji" ? (t.labels && t.labels[t.a]) || "" : plain(t.a));
+    say(solutionSpeech(t));
   }
+}
+/* richtige Lösung zum Vorlesen (nie „undefined“: Schreib-Aufgaben haben ihre Lösung in t.g) */
+function solutionSpeech(t) {
+  if (t.type === "speak") return t.word || "";
+  if (t.type === "trace" || t.type === "write") return t.g || "";
+  if (t.ot === "emoji") return (t.labels && t.labels[t.a]) || "";
+  return t.a == null ? "" : plain(t.a);
 }
 function markLabels(t) { document.querySelectorAll(".opt").forEach((b, i) => { const l = t.labels[SES.opts[i]]; if (l && !b.querySelector(".lab")) b.insertAdjacentHTML("beforeend", `<span class="lab">${esc(l)}</span>`); }); }
 function choose(i, el) {
@@ -845,6 +864,7 @@ document.addEventListener("click", e => {
   if (ds.cls) { FORM.cls = Number(ds.cls); document.querySelectorAll("#fCls button").forEach(b => b.setAttribute("aria-pressed", b === el)); return; }
   if (ds.av) { FORM.av = ds.av; document.querySelectorAll("#fAv button").forEach(b => b.setAttribute("aria-pressed", b === el)); return; }
   if (ds.toggle) { G.set[ds.toggle] = !G.set[ds.toggle]; save(); el.setAttribute("aria-pressed", G.set[ds.toggle]); return; }
+  if (ds.style) { G.set.style = ds.style; save(); renderSet(); say(STYLE[ds.style].hi); return; }
   if (ds.rate) { G.set.rate = Number(ds.rate); save(); renderSet(); say("So schnell spreche ich jetzt."); return; }
   if (ds.goal) { G.set.goal = Number(ds.goal); save(); return renderSet(); }
   if (ds.color) { PNT.c = ds.color; PNT.stamp = null; document.querySelectorAll("[data-color],[data-stamp]").forEach(b => b.setAttribute("aria-pressed", b === el)); return; }
