@@ -1,7 +1,7 @@
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.13.0";
+const APP_VER = "1.13.1";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */

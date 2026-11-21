@@ -322,7 +322,7 @@ function shutter() {
   const fl = document.createElement("div"); fl.className = "flash"; document.body.appendChild(fl);
   setTimeout(() => fl.remove(), 500);
 }
-function savePaint(photo) { // in „Meine Bilder“ und als Bild-Datei aufs Handy (Ordner „Downloads“); nur das Bild, ohne Knöpfe
+function savePaint(photo) { // 💾: „Meine Bilder“ + aufs Handy (Downloads); 📷 (photo): nur „Meine Bilder“; nur das Bild, ohne Knöpfe
   if (!PAINT || (!PDOC.shapes.length && !PDOC.bg)) return toast(photo ? "Male zuerst etwas – dann mach ein Foto! 📷" : "Male zuerst etwas! 🖍️");
   const snap = PAINT.snapshot("image/png"), img = new Image();
   img.onload = () => {
@@ -338,7 +338,9 @@ function savePaint(photo) { // in „Meine Bilder“ und als Bild-Datei aufs Han
     if (!PAINT_FULL) renderPaint();
   };
   img.src = snap;
-  exportPic(snap).then(ok => { if (ok) toast(photo ? "📸 Foto gespeichert! (in „Meine Bilder“ und auf dem Handy)" : "Gespeichert! 🖼️ Unter „Meine Bilder“ und auf dem Handy im Ordner „Downloads“."); });
+  // 📷 Foto: nur in „Meine Bilder“ (ohne Download-Nachfrage); 💾 Speichern: zusätzlich aufs Handy (1.13.1)
+  if (photo) toast("📸 Foto gespeichert! Unter „Meine Bilder“.");
+  else exportPic(snap).then(ok => { if (ok) toast("Gespeichert! 🖼️ Unter „Meine Bilder“ und auf dem Handy im Ordner „Downloads“."); });
   if (photo) shutter(); else { confetti(14); tone([523, 659, 784]); }
 }
 
