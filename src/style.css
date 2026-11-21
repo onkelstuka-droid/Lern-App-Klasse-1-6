@@ -331,3 +331,4 @@ body.noscroll #toast { bottom: 90px; }
 .streak-sub { color: #c4520a !important; font-weight: 700 !important; }
 .gallery img { cursor: pointer; }
 .gallery figure.cur img { box-shadow: 0 0 0 4px var(--org); }
+.paint-wrap canvas.paint { margin: 0 auto; }

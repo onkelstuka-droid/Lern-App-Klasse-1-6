@@ -342,6 +342,7 @@ body.noscroll #toast { bottom: 90px; }
 .streak-sub { color: #c4520a !important; font-weight: 700 !important; }
 .gallery img { cursor: pointer; }
 .gallery figure.cur img { box-shadow: 0 0 0 4px var(--org); }
+.paint-wrap canvas.paint { margin: 0 auto; }
 </style>
 <script>if("serviceWorker" in navigator){var hadSW=!!navigator.serviceWorker.controller,reloaded=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(hadSW&&!reloaded){reloaded=true;location.reload()}});addEventListener("load",function(){navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(function(r){r.update()}).catch(function(){})});document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")navigator.serviceWorker.getRegistration().then(function(r){r&&r.update()})})}</script>
 </head><body>
@@ -1645,6 +1646,8 @@ function initPaint() {
   const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left - ox) / pw, (e.clientY - r.top - oy) / ph]; };
 
   function size() {
+    // normale Ansicht: Malfläche nur so breit wie das Blatt, damit man links/rechts daneben die Seite scrollen kann (1.13.2)
+    if (!cv.classList.contains("full")) { cv.style.width = ""; const wrapW = cv.parentElement.clientWidth, h = cv.clientHeight; cv.style.width = Math.min(wrapW, Math.floor((h - 6) / doc.aspect) + 6) + "px"; }
     const r = cv.getBoundingClientRect();
     dpr = Math.min(devicePixelRatio || 1, 2.5);
     W = r.width; H = r.height;
@@ -1943,7 +1946,7 @@ function paintClick(ds, el, act) {
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.13.1";
+const APP_VER = "1.13.2";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */

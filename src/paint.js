@@ -91,6 +91,8 @@ function initPaint() {
   const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left - ox) / pw, (e.clientY - r.top - oy) / ph]; };
 
   function size() {
+    // normale Ansicht: Malfläche nur so breit wie das Blatt, damit man links/rechts daneben die Seite scrollen kann (1.13.2)
+    if (!cv.classList.contains("full")) { cv.style.width = ""; const wrapW = cv.parentElement.clientWidth, h = cv.clientHeight; cv.style.width = Math.min(wrapW, Math.floor((h - 6) / doc.aspect) + 6) + "px"; }
     const r = cv.getBoundingClientRect();
     dpr = Math.min(devicePixelRatio || 1, 2.5);
     W = r.width; H = r.height;
