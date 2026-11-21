@@ -37,6 +37,11 @@ Wünsche (21.11.2026): Kinder Klasse 1–6; Buchstaben, Zahlen, Rechnen; mit dem
 - Vorlesen: `say()` mit deutscher Handy-Stimme (`de-DE`, Google bevorzugt), `speechText()` macht Rechenzeichen, Brüche (¾ → „drei Viertel“), Minus, Hochzahlen, Klammern sprechbar, entfernt Emoji und schreibt GROSSBUCHSTABEN-Wörter klein (sonst buchstabiert die Stimme sie). Einstellung „Aufgaben automatisch vorlesen“ (Standard an, wichtig für Kl. 1).
 - Spracherkennung: `webDict()` (Chrome, `de-DE`, ein Satz pro Aufnahme, 3 Alternativen). `speechMatch` ignoriert Füllwörter (der/die/das/ein/ist …) und erlaubt kleine Abweichungen. `parseSpokenNum` versteht Ziffern und Zahlwörter („dreihundertvierundzwanzig“, „minus drei“, „zwei Komma fünf“).
 
+## Malen und Fenster (1.4)
+- Keine `confirm()`-Fenster mehr (die zeigten „http://onkelstuka-droid.github.io“, Nutzer wollte seinen Namen dort nicht sehen) – stattdessen eigenes Fenster `ask(text, ja, nein, bild)` → Promise.
+- Malen: „🖼️ In meine Bilder“ (Galerie in der App, max. 12, `lernapp_bilder_<id>`) und „📥 Aufs Handy“ (`exportPic`): Teilen-Menü von Android (Fotos/Drive/Dateien-Ordner wählbar), sonst Download nach „Downloads“. Auch jedes Galerie-Bild hat 📥. Einen Ordner direkt anlegen kann eine Web-App auf Android nicht.
+- Einstellungen → „App weitergeben“ (`shareApp`): Link teilen. App ist kostenlos, ohne Anmeldung; jedes Handy hat eigenen Fortschritt (nur localStorage).
+
 ## Arbeitsweise
 - Testen mit Playwright/Chromium (vorinstalliert) über `python3 -m http.server`; alle Lektionen in einer Schleife generieren und prüfen (richtige Antwort in den Optionen, keine NaN/undefined).
 - Inhalte (Wörter, Sätze, Diktate) in `data.js` ergänzen.
