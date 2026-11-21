@@ -8,9 +8,26 @@ let PDOC = null;        // die Zeichnung: { shapes, tpl, aspect }
 let PAINT = null;       // die Malfläche auf dem Bildschirm
 let PAINT_FULL = false; // ganzer Bildschirm
 const picKey = () => "lernapp_bilder_" + G.cur;
-function loadPics() { try { return JSON.parse(localStorage.getItem(picKey()) || "[]"); } catch (e) { return []; } }
+/* „Meine Bilder“: [{id, img (kleines JPEG), doc (die Zeichnung zum Weitermalen)}]; alte Einträge waren nur ein Bild-Text */
+function loadPics() {
+  let a = [];
+  try { a = JSON.parse(localStorage.getItem(picKey()) || "[]"); } catch (e) { a = []; }
+  return a.map((x, i) => (typeof x === "string" ? { id: "alt" + i, img: x, doc: null } : x));
+}
+function storePics(pics) {
+  for (let drop = 0; drop <= pics.length; drop++) { // wenn der Speicher voll ist: bei den ältesten Bildern zuerst die Zeichnung weglassen
+    const copy = pics.map((p, i) => (i >= pics.length - drop ? { ...p, doc: null } : p));
+    try { localStorage.setItem(picKey(), JSON.stringify(copy)); return true; } catch (e) {}
+  }
+  toast("Der Speicher ist voll – lösche ein paar alte Bilder."); return false;
+}
+const r4 = v => Math.round(v * 10000) / 10000;
+function docForSave(d) {
+  return { tpl: d.tpl, aspect: d.aspect, bg: d.bg || null, shapes: d.shapes.map(s => s.pts ? { ...s, pts: s.pts.map(([x, y]) => [r4(x), r4(y)]) } : s.p ? { ...s, p: [r4(s.p[0]), r4(s.p[1])] } : s) };
+}
 const paperAspect = () => Math.max(1.25, Math.min(2.1, (innerHeight - 70) / Math.max(1, innerWidth)));
-function newDrawing(tpl) { PDOC = { shapes: [], tpl: tpl || null, aspect: paperAspect() }; }
+function newDrawing(tpl) { PDOC = { shapes: [], tpl: tpl || null, aspect: paperAspect(), picId: null, savedLen: 0, bg: null }; }
+const paintDirty = () => PDOC && (PDOC.shapes.length !== (PDOC.savedLen || 0));
 
 function renderPaint() {
   if (!PDOC) newDrawing();
@@ -48,7 +65,7 @@ function renderPaint() {
     <div class="paint-tools">${stamps}</div>
     <div class="muted" id="paintHint" style="margin:-2px 0 6px"></div>
     <div class="paint-wrap"><canvas class="paint" id="paintCv"></canvas><button class="pf-cam" data-act="paint-photo" aria-label="Foto speichern">📷</button><button class="pf-undo" data-act="paint-undo">↩️ Rückgängig</button></div>
-    ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="muted" style="margin-bottom:8px">📥 = aufs Handy speichern · ✖ = löschen</div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button></figure>`).join("")}</div>` : ""}
+    ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="muted" style="margin-bottom:8px">Bild antippen = weitermalen · 📥 = aufs Handy speichern · ✖ = löschen</div><div class="gallery">${pics.map((p, i) => `<figure${PDOC && PDOC.picId === p.id ? ' class="cur"' : ""}><img src="${p.img}" alt="Bild ${i + 1}" data-act="paint-open" data-i="${i}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button></figure>`).join("")}</div>` : ""}
   </div>`;
   initPaint(); paintSync();
 }
@@ -139,6 +156,10 @@ function initPaint() {
   function rebuild() { // base neu aufbauen: Striche und Füllungen der Reihe nach
     bctx.setTransform(1, 0, 0, 1, 0, 0);
     bctx.fillStyle = "#fff"; bctx.fillRect(0, 0, bw, bh);
+    if (doc.bg) { // altes Bild ohne gespeicherte Zeichnung: als Hintergrund weitermalen
+      if (!V.bgImg || V.bgImg.src !== doc.bg) { V.bgImg = new Image(); V.bgImg.onload = () => { rebuild(); draw(); }; V.bgImg.src = doc.bg; }
+      if (V.bgImg.complete && V.bgImg.naturalWidth) bctx.drawImage(V.bgImg, 0, 0, bw, bh);
+    }
     let img = null;
     for (const s of doc.shapes) {
       if (s.stamp) continue;
@@ -248,7 +269,7 @@ function pickTemplate() {
     if (!b || b.hasAttribute("data-tpl-close")) return;
     const id = b.dataset.tpl;
     const start = () => { newDrawing(id); PNT.mode = id ? "fill" : "pen"; if (PNT.c === "#ffffff") PNT.c = "#3a9cff"; renderPaint(); if (id) toast("🪣 Farbe wählen und in die Flächen tippen!"); };
-    if (PDOC && PDOC.shapes.length) ask("Neues Bild anfangen?<br><small>Das jetzige Bild ist dann weg – vorher 💾 speichern!</small>", "Ja, neues Bild", "Nein", "🖍️").then(ok => ok && start());
+    if (PDOC && paintDirty()) ask("Neues Bild anfangen?<br><small>Das jetzige Bild ist dann weg – vorher 💾 speichern!</small>", "Ja, neues Bild", "Nein", "🖍️").then(ok => ok && start());
     else start();
   });
   document.body.appendChild(d);
@@ -302,19 +323,42 @@ function shutter() {
   setTimeout(() => fl.remove(), 500);
 }
 function savePaint(photo) { // in „Meine Bilder“ und als Bild-Datei aufs Handy (Ordner „Downloads“); nur das Bild, ohne Knöpfe
-  if (!PAINT || !PDOC.shapes.length) return toast(photo ? "Male zuerst etwas – dann mach ein Foto! 📷" : "Male zuerst etwas! 🖍️");
+  if (!PAINT || (!PDOC.shapes.length && !PDOC.bg)) return toast(photo ? "Male zuerst etwas – dann mach ein Foto! 📷" : "Male zuerst etwas! 🖍️");
   const snap = PAINT.snapshot("image/png"), img = new Image();
   img.onload = () => {
     const w = 480, h = Math.round((img.height / img.width) * w), c = document.createElement("canvas");
     c.width = w; c.height = h; c.getContext("2d").drawImage(img, 0, 0, w, h);
-    const pics = loadPics(); pics.unshift(c.toDataURL("image/jpeg", 0.72));
+    // gleiches Bild nochmal gespeichert (weitergemalt) → altes Bild ersetzen, sonst neues vorne anfügen
+    const pics = loadPics().filter(p => p.id !== PDOC.picId);
+    PDOC.picId = PDOC.picId || "b" + Date.now().toString(36);
+    pics.unshift({ id: PDOC.picId, img: c.toDataURL("image/jpeg", 0.72), doc: docForSave(PDOC) });
     while (pics.length > 12) pics.pop();
-    try { localStorage.setItem(picKey(), JSON.stringify(pics)); } catch (e) { pics.pop(); try { localStorage.setItem(picKey(), JSON.stringify(pics.slice(0, 6))); } catch (e2) {} }
+    storePics(pics);
+    PDOC.savedLen = PDOC.shapes.length;
     if (!PAINT_FULL) renderPaint();
   };
   img.src = snap;
   exportPic(snap).then(ok => { if (ok) toast(photo ? "📸 Foto gespeichert! (in „Meine Bilder“ und auf dem Handy)" : "Gespeichert! 🖼️ Unter „Meine Bilder“ und auf dem Handy im Ordner „Downloads“."); });
   if (photo) shutter(); else { confetti(14); tone([523, 659, 784]); }
+}
+
+/* gespeichertes Bild wieder öffnen und weitermalen (1.13) */
+function openPic(i) {
+  const p = loadPics()[i];
+  if (!p) return;
+  const open = () => {
+    if (p.doc) PDOC = { ...JSON.parse(JSON.stringify(p.doc)), picId: p.id };
+    else { // alter Eintrag ohne Zeichnung: Bild als Hintergrund
+      const im = new Image(); im.src = p.img;
+      PDOC = { shapes: [], tpl: null, aspect: im.naturalWidth ? im.naturalHeight / im.naturalWidth : paperAspect(), bg: p.img, picId: p.id };
+    }
+    PDOC.savedLen = PDOC.shapes.length;
+    renderPaint();
+    const cv = $("#paintCv"); if (cv) cv.scrollIntoView({ behavior: "smooth", block: "center" });
+    toast("Weitermalen! 🎨 Mit 💾 oder 📷 wird das Bild wieder gespeichert.");
+  };
+  if (PDOC && PDOC.picId !== p.id && paintDirty()) ask("Dein jetziges Bild ist noch nicht gespeichert.<br><small>Trotzdem das andere Bild öffnen?</small>", "Ja, öffnen", "Nein", "🖼️").then(ok => ok && open());
+  else open();
 }
 
 /* Klicks im Malbereich (aus dem allgemeinen Klick-Verteiler) – true = erledigt */
@@ -323,11 +367,12 @@ function paintClick(ds, el, act) {
   if (ds.mode) { PNT.mode = ds.mode; paintSync(); return true; }
   if (ds.width) { PNT.w = Number(ds.width); if (PNT.mode === "stamp" || PNT.mode === "fill") PNT.mode = "pen"; paintSync(); return true; }
   if (ds.stamp) { PNT.stamp = ds.stamp; PNT.mode = "stamp"; paintSync(); return true; }
-  if (ds.delpic !== undefined) { ask("Dieses Bild löschen?", "Löschen", "Nein", "🗑️").then(ok => { if (!ok) return; const p = loadPics(); p.splice(Number(ds.delpic), 1); localStorage.setItem(picKey(), JSON.stringify(p)); renderPaint(); }); return true; }
-  if (ds.exppic !== undefined) { const src = loadPics()[Number(ds.exppic)]; if (src) exportPic(src); return true; }
+  if (ds.delpic !== undefined) { ask("Dieses Bild löschen?", "Löschen", "Nein", "🗑️").then(ok => { if (!ok) return; const p = loadPics(), gone = p.splice(Number(ds.delpic), 1)[0]; storePics(p); if (gone && PDOC && PDOC.picId === gone.id) PDOC.picId = null; renderPaint(); }); return true; }
+  if (ds.exppic !== undefined) { const p = loadPics()[Number(ds.exppic)]; if (p) exportPic(p.img); return true; }
   switch (act) {
     case "paint-undo": if (PAINT) PAINT.undo(); return true;
-    case "paint-clear": if (PDOC && PDOC.shapes.length) ask("Alles wegmachen und neu anfangen?", "Ja, alles weg", "Nein", "🗑️").then(ok => { if (ok) { PDOC.shapes = []; renderPaint(); } }); return true;
+    case "paint-open": openPic(Number(ds.i)); return true;
+    case "paint-clear": if (PDOC && (PDOC.shapes.length || PDOC.bg)) ask("Alles wegmachen und neu anfangen?", "Ja, alles weg", "Nein", "🗑️").then(ok => { if (ok) { newDrawing(); renderPaint(); } }); return true;
     case "paint-save": savePaint(); return true;
     case "paint-photo": savePaint(true); return true;
     case "paint-tpl": pickTemplate(); return true;

@@ -56,6 +56,7 @@ Wünsche (21.11.2026): Kinder Klasse 1–6; Buchstaben, Zahlen, Rechnen; mit dem
 - 1.10: runder Foto-Knopf 📷 unten links auf der Malfläche (`paint-photo` → `savePaint(true)`): speichert wie 💾 (nur das Bild, ohne Knöpfe – `snapshot` nimmt nur die Mal-Ebenen), dazu Kamera-Geräusch „klick-klack“ (`shutter()`, Rauschen mit Web Audio, kein Ton-Datei) und weißer Blitz (Geräusch nur bei „Töne“ an).
 - Speicherort: Eine Web-App kann auf Android keinen eigenen Ordner/kein Album anlegen – Bilder landen per Download in „Download“ (Name `Lern-App-Bild-…`), in Google Fotos unter Sammlungen → Auf diesem Gerät → Download. Dem Nutzer so erklärt (1.10).
 - Speichern speichert das Bild (ohne die Zeichnung zu löschen) in „Meine Bilder“ + Downloads.
+- 1.13 Weitermalen (Wunsch: Bild unter „Meine Bilder“ antippen und weitermalen): Einträge `{id, img, doc}` (`doc` = Zeichnung mit gerundeten Koordinaten, `docForSave`); Antippen → `openPic` lädt `doc` (`PDOC.picId`); erneutes Speichern ersetzt den Eintrag statt neu anzufügen. Alte Einträge (nur Bild-Text) öffnen als Hintergrund `PDOC.bg`. `storePics` lässt bei vollem Speicher zuerst die Zeichnungen der ältesten Bilder weg. Vor dem Öffnen Nachfrage, wenn ungespeichert (`paintDirty`).
 - 1.8.1: „💬 Schicken“ (WhatsApp) auf Wunsch des Nutzers komplett entfernt – klappte mit WhatsApp nicht; „Speichern reicht“. `exportPic` speichert nur noch (Download). Abschnitte oben zu Schicken/Teilen sind damit Geschichte.
 
 ## Arbeitsweise

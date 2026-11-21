@@ -329,3 +329,5 @@ body.noscroll #toast { bottom: 90px; }
 .pill.streak.bump { animation: bump .45s; }
 @keyframes bump { 40% { transform: scale(1.35) rotate(-6deg); } }
 .streak-sub { color: #c4520a !important; font-weight: 700 !important; }
+.gallery img { cursor: pointer; }
+.gallery figure.cur img { box-shadow: 0 0 0 4px var(--org); }
