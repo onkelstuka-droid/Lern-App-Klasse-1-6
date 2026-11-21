@@ -1833,7 +1833,7 @@ function exportPic(src) {
 }
 /* Foto-Geräusch „klick-klack“ (selbst erzeugt) und weißer Blitz */
 function shutter() {
-  try {
+  if (G.set.sfx) try {
     AC = AC || new (window.AudioContext || window.webkitAudioContext)();
     const t = AC.currentTime, len = Math.round(AC.sampleRate * 0.07);
     [0, 0.11].forEach((at, k) => {
