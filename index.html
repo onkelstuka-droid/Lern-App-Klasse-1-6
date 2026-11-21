@@ -1894,7 +1894,7 @@ function paintClick(ds, el, act) {
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.11.0";
+const APP_VER = "1.12.0";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */
@@ -2389,7 +2389,7 @@ async function shareApp() {
 
 /* ======================= ÜBEN ======================= */
 let SES = null;
-const PRAISE = ["Super!", "Toll gemacht!", "Klasse!", "Richtig!", "Prima!", "Spitze!", "Genau!", "Wow, sehr gut!", "Perfekt!"];
+const PRAISE = ["Super!", "Toll gemacht!", "Klasse!", "Richtig!", "Prima!", "Spitze!", "Genau!", "Wow, sehr gut!", "Perfekt!", "Wow, super!", "Stark!"];
 function startUnit(uid) {
   const u = UNIT[uid];
   let tasks = [];
@@ -2514,7 +2514,7 @@ function finish(ok, extra = "") {
   showStreak();
   if (ok) {
     const st = streakPraise(SES.streak), p = st ? st.t : pick(PRAISE);
-    if (st) { SES.xp += st.bonus; if (st.big) { confetti(st.big); fanfare(); } }
+    if (st) { SES.xp += st.bonus; if (st.big) confetti(st.big); setTimeout(() => wowSound(st.lvl), 250); }
     showFb("ok", `<div class="msg"><span class="owl">${st ? st.e : "🦉"}</span>${p}</div>${st ? `<div class="sub streak-sub">🔥 ${SES.streak} richtig hintereinander · +${st.bonus} Bonus-Punkte</div>` : ""}${extra}${t.type === "choice" && t.hint && SES.tries ? `<div class="sub">${esc(t.hint)}</div>` : ""}`);
     if (G.set.auto) say(st ? st.say : p);
   } else {
@@ -2526,21 +2526,52 @@ function finish(ok, extra = "") {
 }
 /* Lob wird größer, je mehr hintereinander richtig sind (1.11) */
 function streakPraise(n) {
-  const name = P() ? P().name : "";
-  const L = [
-    [2, "👍", "Zwei hintereinander richtig!", 2, 0],
-    [3, "🔥", "Drei in Folge! Super Serie!", 5, 12],
-    [4, "🔥", "Vier in Folge! Weiter so!", 5, 0],
-    [5, "🌟", `Fünf in Folge! Du bist ein Star${name ? ", " + name : ""}!`, 10, 30],
-    [7, "🚀", "Sieben in Folge! Unglaublich!", 10, 30],
-    [10, "🏆", `Zehn in Folge! Rekord${name ? ", " + name : ""}! Du bist ein Champion!`, 20, 50],
-    [15, "👑", "Fünfzehn in Folge! Du bist der König der Aufgaben!", 20, 50]
-  ];
-  let hit = L.filter(x => x[0] === n)[0];
-  if (!hit && n > 5) hit = n % 5 === 0 ? [n, "🏆", `${n} in Folge! Wahnsinn!`, 20, 50] : [n, "🔥", `${n} in Folge! Weiter so!`, 5, 0];
-  if (!hit) return null;
-  const [, e, t, bonus, big] = hit;
-  return { e, t, say: t.replace(/[!]/g, "!"), bonus, big };
+  const nm = P() ? P().name : "", N = nm ? ", " + nm : "";
+  const W = {
+    2: ["Wow, du bist super!", "Wow, zwei richtig hintereinander!", "Klasse! Weiter so!"],
+    3: ["Wow, du bist echt krass!", "Wow, drei in Folge! Du bist super!", "Boah, du bist richtig gut!"],
+    4: ["Du wirst immer besser! Mach weiter so!", "Wow, vier in Folge! Du bist der Hammer!", "Wow, du bist echt krass!"],
+    5: [`Wow! Fünf in Folge! Du bist ein echter Star${N}!`, `Wahnsinn${N}! Du bist echt krass!`, "Wow! Fünf richtig! Du bist super!"],
+    7: ["Wow! Sieben in Folge! Unglaublich!", `Du bist der Hammer${N}! Mach weiter so!`],
+    10: [`Wow! Zehn in Folge! Rekord${N}! Du bist ein Champion!`, `Zehn richtig hintereinander! Du bist der Wahnsinn${N}!`],
+    more: ["Wow, du wirst immer besser! Mach weiter so!", "Unglaublich! Du bist der Hammer!", `Boah, du bist echt krass${N}!`, "Wow! Du bist super! Mach weiter so!", `Du bist spitze${N}! Immer weiter!`]
+  };
+  const EMO = { 2: "😃", 3: "🔥", 4: "💪", 5: "🌟", 7: "🚀", 10: "🏆" };
+  if (n < 2) return null;
+  const list = W[n] || (n % 5 === 0 ? [`Wow! ${n} in Folge! Wahnsinn${N}!`, `${n} richtig hintereinander! Du bist ein Champion!`] : W.more);
+  const t = pick(list), e = EMO[n] || (n % 5 === 0 ? "🏆" : "🔥");
+  const bonus = n === 2 ? 2 : n < 5 ? 5 : n % 5 === 0 ? (n >= 10 ? 20 : 10) : n === 7 ? 10 : 5;
+  const big = n === 3 ? 14 : n === 5 || n === 7 ? 30 : n % 5 === 0 ? 50 : n > 5 ? 10 : 0;
+  return { e, t, say: t, bonus, big, lvl: n >= 5 ? 3 : n >= 3 ? 2 : 1 };
+}
+/* „Wow“-Geräusch: Stimme (Vokal u→a→u) plus Jubel/Klatschen, je nach Stufe größer */
+function wowSound(lvl) {
+  if (!G.set.sfx) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const t = AC.currentTime, dur = 0.55 + lvl * 0.12;
+    // „Wooow“: Sägezahn durch zwei Formant-Filter, Tonhöhe hoch und wieder runter
+    const o = AC.createOscillator(), f1 = AC.createBiquadFilter(), f2 = AC.createBiquadFilter(), g = AC.createGain(), mix = AC.createGain();
+    o.type = "sawtooth";
+    o.frequency.setValueAtTime(170, t); o.frequency.linearRampToValueAtTime(290, t + dur * 0.45); o.frequency.linearRampToValueAtTime(190, t + dur);
+    f1.type = f2.type = "bandpass"; f1.Q.value = 6; f2.Q.value = 8;
+    f1.frequency.setValueAtTime(320, t); f1.frequency.linearRampToValueAtTime(780, t + dur * 0.45); f1.frequency.linearRampToValueAtTime(350, t + dur);
+    f2.frequency.setValueAtTime(800, t); f2.frequency.linearRampToValueAtTime(1200, t + dur * 0.45); f2.frequency.linearRampToValueAtTime(820, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.08); g.gain.setValueAtTime(0.5, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(f1); o.connect(f2); f1.connect(mix); f2.connect(mix); mix.gain.value = 0.9; mix.connect(g).connect(AC.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+    if (lvl >= 2) { // Klatschen: viele kurze Rauschstöße
+      const claps = lvl >= 3 ? 26 : 12;
+      for (let k = 0; k < claps; k++) {
+        const len = Math.round(AC.sampleRate * 0.03), buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+        const src = AC.createBufferSource(), bp = AC.createBiquadFilter(), cg = AC.createGain();
+        src.buffer = buf; bp.type = "bandpass"; bp.frequency.value = 1200 + Math.random() * 1400; cg.gain.value = 0.25 + Math.random() * 0.25;
+        src.connect(bp).connect(cg).connect(AC.destination); src.start(t + 0.15 + Math.random() * (0.5 + lvl * 0.25));
+      }
+    }
+    if (lvl >= 3) tone([784, 988, 1175, 1568], "triangle", 0.09, 0.3, 0.08);
+  } catch (e) {}
 }
 function showStreak() {
   const el = $("#sesStreak");
