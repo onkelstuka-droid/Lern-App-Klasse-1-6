@@ -324,3 +324,8 @@ body.noscroll #toast { bottom: 90px; }
 .pf .pf-cam { position: fixed; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); left: 16px; }
 .flash { position: fixed; inset: 0; background: #fff; z-index: 80; pointer-events: none; animation: flash .45s ease-out forwards; }
 @keyframes flash { from { opacity: .95; } to { opacity: 0; } }
+/* Serie (richtig hintereinander) */
+.pill.streak { background: #fff1e0; color: #c4520a; font-weight: 700; box-shadow: 0 3px 0 #ffd2a6; }
+.pill.streak.bump { animation: bump .45s; }
+@keyframes bump { 40% { transform: scale(1.35) rotate(-6deg); } }
+.streak-sub { color: #c4520a !important; font-weight: 700 !important; }

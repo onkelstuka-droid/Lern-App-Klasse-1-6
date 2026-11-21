@@ -24,6 +24,7 @@ Wünsche (21.11.2026): Kinder Klasse 1–6; Buchstaben, Zahlen, Rechnen; mit dem
 - `U(id, fach, klasse, icon, name, gen)` – `gen()` erzeugt bei jedem Start neue Aufgaben. Neue Lektion = eine `U(...)`-Zeile.
 - Aufgaben-Arten: `choice` (antippen, `ot` = big/emoji/word, 2 Versuche, bei 2 Antworten 1), `num` (Ziffernblock + 🎤 Zahl sagen, `neg`/`dec` für Minus-/Komma-Taste), `speak` (Spracherkennung, `fb` = Ersatz-Auswahl für „Lieber antippen“ oder Browser ohne Spracherkennung), `trace` (nachspuren), `write` (frei schreiben, Erkennung), `type` (Diktat).
 - Falsch beim ersten Versuch → Aufgabe kommt am Ende der Runde nochmal (max. 5).
+- Serie (1.11, Wunsch: mehr Lob, wenn mehrere hintereinander richtig): `SES.streak` zählt beim ersten Versuch richtige Antworten in Folge (falsch/zweiter Versuch → 0). `streakPraise(n)`: ab 2 eigenes Lob, ab 3 🔥 mit Bonus-Punkten (2/5/10/20), bei 3/5/7/10 Konfetti, ab 5 Fanfare, mit Namen des Kindes. Anzeige „🔥 n“ oben in der Übung, „Längste Serie“ im Ergebnis, `D().bestStreak` im Fortschritt.
 
 ## Schreiben mit dem Finger (glyphs.js)
 - `GLY`: Druckschrift A–Z, Ä Ö Ü, a–z, ä ö ü ß, 0–9 als SVG-Striche in Schreibreihenfolge. Lineatur: Oberlinie 10, Mittellinie 40, Grundlinie 70, Unterlinie 92.

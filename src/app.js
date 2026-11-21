@@ -1,7 +1,7 @@
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.10.0";
+const APP_VER = "1.11.0";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */
@@ -404,6 +404,7 @@ function renderProg() {
     <div class="card"><div class="row"><span class="ava">${p.av}</span><div class="sp"><b style="font-size:22px">${esc(p.name)}</b><div class="muted">Klasse ${p.cls} · Level ${lv.n} · ${d.xp} Punkte</div><div class="bar" style="margin-top:6px;--c:var(--sun)"><i style="width:${lv.p * 100}%"></i></div></div></div></div>
     <div class="stats" style="margin-top:14px">
       <div class="stat"><b>✅ ${d.ok}</b><span>richtig</span></div><div class="stat"><b>🧠 ${known}</b><span>sitzt schon</span></div><div class="stat"><b>🔥 ${streak()}</b><span>Tage in Folge</span></div></div>
+    ${d.bestStreak ? `<div class="card" style="margin-bottom:14px">🏅 Deine längste Serie: <b>${d.bestStreak}</b> Aufgaben hintereinander richtig!</div>` : ""}
     <div class="card"><h3>Diese Woche</h3><div class="week" style="margin-top:10px">${days.map(x => `<div class="${x.t ? "t" : ""}"><i style="height:${(x.n / mx) * 80}px"></i>${x.l}<br>${x.n}</div>`).join("")}</div></div>
     <div class="sec"><h3>Meine Fächer (Klasse ${p.cls})</h3></div><div class="card">${areas}</div>
     ${p.cls <= 2 || Object.keys(rv).some(k => /^[BSF]:/.test(k)) ? `<div class="sec"><h3>🔤 Buchstaben</h3></div><div class="card"><div class="lgrid">${letters}</div>${legend}</div>
@@ -509,7 +510,7 @@ function startReview() {
   openSession({ uid: "rev", title: "Wiederholen", icon: "🔁", tasks: shuffle(due.map(r => JSON.parse(JSON.stringify(r.t)))) });
 }
 function openSession(o) {
-  SES = { ...o, i: 0, ok: 0, n: o.tasks.length, xp: 0, tries: 0, answered: false, again: 0 };
+  SES = { ...o, i: 0, ok: 0, n: o.tasks.length, xp: 0, tries: 0, answered: false, again: 0, streak: 0, best: 0 };
   $("#ses").hidden = false; document.body.style.overflow = "hidden";
   if (!STACK.some(c => c.ses)) { const c = () => closeSession(); c.ses = true; pushLayer(c); }
   showTask();
@@ -615,16 +616,44 @@ function finish(ok, extra = "") {
   save();
   sfx(ok);
   if (t.labels) markLabels(t);
+  SES.streak = first ? SES.streak + 1 : 0; // Serie: richtig beim ersten Versuch hintereinander
+  SES.best = Math.max(SES.best, SES.streak);
+  showStreak();
   if (ok) {
-    const p = pick(PRAISE);
-    showFb("ok", `<div class="msg"><span class="owl">🦉</span>${p}</div>${extra}${t.type === "choice" && t.hint && SES.tries ? `<div class="sub">${esc(t.hint)}</div>` : ""}`);
-    if (G.set.auto) say(p);
+    const st = streakPraise(SES.streak), p = st ? st.t : pick(PRAISE);
+    if (st) { SES.xp += st.bonus; if (st.big) { confetti(st.big); fanfare(); } }
+    showFb("ok", `<div class="msg"><span class="owl">${st ? st.e : "🦉"}</span>${p}</div>${st ? `<div class="sub streak-sub">🔥 ${SES.streak} richtig hintereinander · +${st.bonus} Bonus-Punkte</div>` : ""}${extra}${t.type === "choice" && t.hint && SES.tries ? `<div class="sub">${esc(t.hint)}</div>` : ""}`);
+    if (G.set.auto) say(st ? st.say : p);
   } else {
     if (t.type === "choice") document.querySelectorAll(".opt").forEach((b, i) => { if (SES.opts[i] === t.a) b.classList.add("ok"); b.disabled = true; });
     if (t.type === "trace" || t.type === "write") PADS && PADS.showSolution();
     showFb("bad", `<div class="msg"><span class="owl">🦉</span>Schau mal, so ist es richtig:</div><div class="sub sol">${answerText(t)}</div>${extra}${t.hint ? `<div class="sub">💡 ${esc(t.hint)}</div>` : ""}`);
     say(solutionSpeech(t));
   }
+}
+/* Lob wird größer, je mehr hintereinander richtig sind (1.11) */
+function streakPraise(n) {
+  const name = P() ? P().name : "";
+  const L = [
+    [2, "👍", "Zwei hintereinander richtig!", 2, 0],
+    [3, "🔥", "Drei in Folge! Super Serie!", 5, 12],
+    [4, "🔥", "Vier in Folge! Weiter so!", 5, 0],
+    [5, "🌟", `Fünf in Folge! Du bist ein Star${name ? ", " + name : ""}!`, 10, 30],
+    [7, "🚀", "Sieben in Folge! Unglaublich!", 10, 30],
+    [10, "🏆", `Zehn in Folge! Rekord${name ? ", " + name : ""}! Du bist ein Champion!`, 20, 50],
+    [15, "👑", "Fünfzehn in Folge! Du bist der König der Aufgaben!", 20, 50]
+  ];
+  let hit = L.filter(x => x[0] === n)[0];
+  if (!hit && n > 5) hit = n % 5 === 0 ? [n, "🏆", `${n} in Folge! Wahnsinn!`, 20, 50] : [n, "🔥", `${n} in Folge! Weiter so!`, 5, 0];
+  if (!hit) return null;
+  const [, e, t, bonus, big] = hit;
+  return { e, t, say: t.replace(/[!]/g, "!"), bonus, big };
+}
+function showStreak() {
+  const el = $("#sesStreak");
+  if (!el) return;
+  el.hidden = !SES || SES.streak < 2;
+  if (SES && SES.streak >= 2) { el.textContent = `🔥 ${SES.streak}`; el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); }
 }
 /* richtige Lösung zum Vorlesen (nie „undefined“: Schreib-Aufgaben haben ihre Lösung in t.g) */
 function solutionSpeech(t) {
@@ -706,6 +735,7 @@ function nextTask() {
 }
 function showResult() {
   const d = D(), r = SES.n ? SES.ok / SES.n : 0, st = r >= 0.9 ? 3 : r >= 0.7 ? 2 : 1;
+  d.bestStreak = Math.max(d.bestStreak || 0, SES.best);
   stopSay(); hideFb();
   d.xp += SES.xp;
   let sticker = null;
@@ -721,7 +751,7 @@ function showResult() {
   $("#sesBody").innerHTML = `<div class="result">
     <div class="v-emo">🦉</div><h1>${msg}</h1>
     <div class="big-stars">${[1, 2, 3].map(i => `<span style="${st >= i ? "" : "filter:grayscale(1);opacity:.25"}">⭐</span>`).join("")}</div>
-    <p style="font-size:20px">${SES.ok} von ${SES.n} gleich beim ersten Mal richtig<br><b>+${SES.xp} Punkte</b></p>
+    <p style="font-size:20px">${SES.ok} von ${SES.n} gleich beim ersten Mal richtig<br><b>+${SES.xp} Punkte</b>${SES.best >= 3 ? `<br>🔥 Längste Serie: <b>${SES.best}</b> hintereinander richtig` : ""}</p>
     ${sticker ? `<div class="card" style="margin:16px 0"><div class="muted">Neuer Sticker für dein Album!</div><div class="sticker-new">${sticker}</div></div>` : ""}
     <div class="padbar" style="flex-direction:column;align-items:stretch">
       ${SES.uid !== "rev" ? `<button class="btn orange wide" data-act="again">🔄 Nochmal üben</button>` : ""}
