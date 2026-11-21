@@ -52,6 +52,7 @@ Wünsche (21.11.2026): Kinder Klasse 1–6; Buchstaben, Zahlen, Rechnen; mit dem
 - Modi: 🖌️ Pinsel, 🪣 Füllen (Flood-Fill auf `base`, begrenzt durch Ausmalbild-Linien `lineMask` und durch andersfarbige Flächen; Linienrand wird mitgefärbt), 🧽 Schwamm, Stempel. „↩️“ entfernt den letzten Schritt (base wird neu aufgebaut).
 - „⛶ Ganzer Bildschirm“ (`paintFull`, Ebene in der Zurück-Navigation, Vollbild-API): oben kompakte Leiste (✖ Klein, Modi, Größen, ↩️, 💾, Farben, Stempel), Malfläche füllt den Rest.
 - Speichern speichert das Bild (ohne die Zeichnung zu löschen) in „Meine Bilder“ + Downloads.
+- 1.8.1: „💬 Schicken“ (WhatsApp) auf Wunsch des Nutzers komplett entfernt – klappte mit WhatsApp nicht; „Speichern reicht“. `exportPic` speichert nur noch (Download). Abschnitte oben zu Schicken/Teilen sind damit Geschichte.
 
 ## Arbeitsweise
 - Testen mit Playwright/Chromium (vorinstalliert) über `python3 -m http.server`; alle Lektionen in einer Schleife generieren und prüfen (richtige Antwort in den Optionen, keine NaN/undefined).

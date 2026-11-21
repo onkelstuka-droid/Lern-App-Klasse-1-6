@@ -34,7 +34,6 @@ function renderPaint() {
     <div class="head"><button class="icon-btn" data-act="back" aria-label="Zurück">⬅️</button><div class="t">🎨 Malen</div></div>
     <div class="paint-main">
       <button class="btn green" data-act="paint-save">💾 Speichern</button>
-      <button class="btn wa" data-act="paint-share">💬 Schicken</button>
       <button class="btn ghost" data-act="paint-clear">🗑️ Neu</button>
     </div>
     <div class="paint-main two">
@@ -48,7 +47,7 @@ function renderPaint() {
     <div class="muted" id="paintHint" style="margin:-2px 0 6px"></div>
     <canvas class="paint" id="paintCv"></canvas>
     <div class="padbar"><button class="btn ghost small" data-act="paint-undo">↩️ Letzten Schritt weg</button></div>
-    ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="muted" style="margin-bottom:8px">📥 = aufs Handy speichern · 💬 = verschicken (z. B. WhatsApp) · ✖ = löschen</div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button><button class="shr" data-shrpic="${i}" aria-label="Teilen">💬</button></figure>`).join("")}</div>` : ""}
+    ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="muted" style="margin-bottom:8px">📥 = aufs Handy speichern · ✖ = löschen</div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button></figure>`).join("")}</div>` : ""}
   </div>`;
   initPaint(); paintSync();
 }
@@ -261,7 +260,7 @@ function paintFull(on) {
 }
 
 /* ---------- Bild speichern / schicken ---------- */
-/* Bild-Datei sofort (ohne Warten) erzeugen – sonst verbietet Android das Teilen (1.5.1) */
+/* Bild-Datei aus dem Bild erzeugen */
 function picFile(src) {
   const [head, data] = src.split(","), type = (head.match(/data:(.*?);/) || [, "image/png"])[1];
   const bin = atob(data), u = new Uint8Array(bin.length);
@@ -275,30 +274,10 @@ function downloadFile(file) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
-/* share = true: Teilen-Menü (WhatsApp …); sonst Datei in „Downloads“ speichern */
-function exportPic(src, share = false) {
-  let file;
-  try { file = picFile(src); } catch (e) { toast("Das Bild konnte nicht vorbereitet werden."); return Promise.resolve(false); }
-  if (!share) { downloadFile(file); return Promise.resolve(true); }
-  const data = { files: [file], title: "" }; // nur das Bild (mit Text: WhatsApp „Teilen fehlgeschlagen“, 1.6); leerer Titel (1.7)
-  const canFiles = navigator.share && navigator.canShare && navigator.canShare({ files: [file] });
-  if (!canFiles) {
-    downloadFile(file);
-    toast("Dieses Handy kann Bilder hier nicht direkt verschicken. Das Bild liegt in „Downloads“ – in WhatsApp über 📎 anhängen.");
-    return Promise.resolve(false);
-  }
-  return navigator.share(data).then(() => { setTimeout(() => toast("Hat WhatsApp „Teilen fehlgeschlagen“ gemeldet? Dann 💾 Speichern und in WhatsApp über 📎 → Galerie anhängen."), 1500); return true; }).catch(e => {
-    if (e && e.name === "AbortError") return false;
-    return ask("Bild verschicken?", "💬 Jetzt schicken", "Abbrechen", "📨").then(ok => {
-      if (!ok) return false;
-      return navigator.share({ files: [file] }).then(() => true).catch(e2 => {
-        if (e2 && e2.name === "AbortError") return false;
-        downloadFile(file);
-        toast(`Schicken klappt gerade nicht (${(e2 && e2.name) || "Fehler"}). Das Bild liegt in „Downloads“ – in WhatsApp über 📎 anhängen.`);
-        return false;
-      });
-    });
-  });
+/* Bild als Datei aufs Handy (Ordner „Downloads“). Verschicken per WhatsApp gibt es seit 1.8.1 nicht mehr (Wunsch des Nutzers, klappte dort nicht). */
+function exportPic(src) {
+  try { downloadFile(picFile(src)); return Promise.resolve(true); }
+  catch (e) { toast("Das Bild konnte nicht gespeichert werden."); return Promise.resolve(false); }
 }
 function savePaint() { // in „Meine Bilder“ und als Bild-Datei aufs Handy (Ordner „Downloads“)
   if (!PAINT || !PDOC.shapes.length) return toast("Male zuerst etwas! 🖍️");
@@ -323,12 +302,10 @@ function paintClick(ds, el, act) {
   if (ds.width) { PNT.w = Number(ds.width); if (PNT.mode === "stamp" || PNT.mode === "fill") PNT.mode = "pen"; paintSync(); return true; }
   if (ds.stamp) { PNT.stamp = ds.stamp; PNT.mode = "stamp"; paintSync(); return true; }
   if (ds.delpic !== undefined) { ask("Dieses Bild löschen?", "Löschen", "Nein", "🗑️").then(ok => { if (!ok) return; const p = loadPics(); p.splice(Number(ds.delpic), 1); localStorage.setItem(picKey(), JSON.stringify(p)); renderPaint(); }); return true; }
-  if (ds.shrpic !== undefined) { const src = loadPics()[Number(ds.shrpic)]; if (src) exportPic(src, true); return true; }
   if (ds.exppic !== undefined) { const src = loadPics()[Number(ds.exppic)]; if (src) exportPic(src); return true; }
   switch (act) {
     case "paint-undo": if (PAINT) PAINT.undo(); return true;
     case "paint-clear": if (PDOC && PDOC.shapes.length) ask("Alles wegmachen und neu anfangen?", "Ja, alles weg", "Nein", "🗑️").then(ok => { if (ok) { PDOC.shapes = []; renderPaint(); } }); return true;
-    case "paint-share": if (!PAINT || !PDOC.shapes.length) { toast("Male zuerst etwas! 🖍️"); return true; } exportPic(PAINT.snapshot("image/jpeg", 0.9), true); return true;
     case "paint-save": savePaint(); return true;
     case "paint-tpl": pickTemplate(); return true;
     case "paint-full": pushLayer(() => paintFull(false)); paintFull(true); return true;
