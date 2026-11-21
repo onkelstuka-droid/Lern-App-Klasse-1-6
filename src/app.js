@@ -1,7 +1,7 @@
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.5.0";
+const APP_VER = "1.5.1";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */
@@ -545,21 +545,45 @@ function initPaint() {
   size();
 }
 /* Bild aufs Handy: Teilen-Menü (z. B. Google Fotos oder ein Ordner in „Dateien“), sonst Download-Ordner */
-async function exportPic(src, share = false) {
-  try {
-    const blob = await (await fetch(src)).blob();
-    const d = new Date(), name = `Lern-App-Bild-${dayStr(d)}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}.${blob.type === "image/png" ? "png" : "jpg"}`;
-    const file = new File([blob], name, { type: blob.type });
-    if (share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share(share ? { files: [file], title: "Mein Bild", text: `Schau mal, was ich gemalt habe! 🎨 ${P() ? "– " + P().name : ""}` } : { files: [file], title: "Mein Bild" }); return; } catch (e) { if (e && e.name === "AbortError") return; }
-    }
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = name;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    if (share) toast("Verschicken geht hier nicht direkt. Das Bild liegt im Ordner „Downloads“ – in WhatsApp über 📎 anhängen.");
-    return true;
-  } catch (e) { toast("Speichern hat nicht geklappt."); }
+/* Bild-Datei sofort (ohne Warten) erzeugen – sonst verbietet Android das Teilen („Fehler“, 1.5.1) */
+function picFile(src) {
+  const [head, data] = src.split(","), type = (head.match(/data:(.*?);/) || [, "image/png"])[1];
+  const bin = atob(data), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  const d = new Date(), name = `Lern-App-Bild-${dayStr(d)}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}.${type === "image/png" ? "png" : "jpg"}`;
+  return new File([u], name, { type });
+}
+function downloadFile(file) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file); a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+/* share = true: Teilen-Menü (WhatsApp …); sonst Datei in „Downloads“ speichern */
+function exportPic(src, share = false) {
+  let file;
+  try { file = picFile(src); } catch (e) { toast("Das Bild konnte nicht vorbereitet werden."); return Promise.resolve(false); }
+  if (!share) { downloadFile(file); return Promise.resolve(true); }
+  const data = { files: [file], text: `Schau mal, was ich gemalt habe! 🎨${P() ? " – " + P().name : ""}` };
+  const canFiles = navigator.share && navigator.canShare && navigator.canShare({ files: [file] });
+  if (!canFiles) {
+    downloadFile(file);
+    toast("Dieses Handy kann Bilder hier nicht direkt verschicken. Das Bild liegt in „Downloads“ – in WhatsApp über 📎 anhängen.");
+    return Promise.resolve(false);
+  }
+  return navigator.share(data).then(() => true).catch(e => {
+    if (e && e.name === "AbortError") return false; // selbst abgebrochen
+    // zweiter Versuch mit neuem Antippen (Android erlaubt Teilen nur direkt nach einem Tippen)
+    return ask("Bild verschicken?", "💬 Jetzt schicken", "Abbrechen", "📨").then(ok => {
+      if (!ok) return false;
+      return navigator.share({ files: [file] }).then(() => true).catch(e2 => {
+        if (e2 && e2.name === "AbortError") return false;
+        downloadFile(file);
+        toast(`Schicken klappt gerade nicht (${(e2 && e2.name) || "Fehler"}). Das Bild liegt in „Downloads“ – in WhatsApp über 📎 anhängen.`);
+        return false;
+      });
+    });
+  });
 }
 function savePaint() { // in „Meine Bilder“ und als Bild-Datei aufs Handy (Ordner „Downloads“)
   if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️");
