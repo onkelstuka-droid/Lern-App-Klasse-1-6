@@ -1,7 +1,7 @@
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.2.0";
+const APP_VER = "1.2.1";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */
@@ -69,7 +69,8 @@ let VOICES = [];
 function loadVoices() { try { VOICES = (speechSynthesis.getVoices() || []).filter(v => /^de/i.test(v.lang)); } catch (e) { VOICES = []; } }
 if ("speechSynthesis" in window) { loadVoices(); speechSynthesis.addEventListener && speechSynthesis.addEventListener("voiceschanged", loadVoices); }
 function pickVoice() {
-  const own = G.set.voice && VOICES.find(v => v.name === G.set.voice);
+  const want = (G.set.vmap && G.set.vmap[G.set.style]) || G.set.voice;
+  const own = want && VOICES.find(v => v.name === want);
   if (own) return own;
   const nice = v => /google|natural|enhanced|premium|neural/i.test(v.name);
   const de = VOICES.filter(v => /de[-_]DE/i.test(v.lang));
@@ -107,10 +108,10 @@ const STYLE = {
   robo: { e: "🤖", n: "Robo", pitch: 0.2, rate: 0.85, male: true, hi: "Hallo. Ich. Bin. Robo. Der Rechen-Roboter." },
   fee: { e: "🧚", n: "Fee Flora", pitch: 1.5, rate: 0.95, hi: "Hallo! Ich bin Fee Flora. Lass uns zaubern und lernen!" },
   /* Männer-Stimmen (Wunsch 1.2: für Jungs – Superheld, Baggerfahrer, Polizist) */
-  held: { e: "🦸‍♂️", n: "Kapitän Blitz", pitch: 0.6, rate: 1.05, male: true, hi: "Keine Angst! Kapitän Blitz ist da! Zusammen schaffen wir jede Aufgabe!" },
-  bagger: { e: "🚜", n: "Baggerfahrer Bernd", pitch: 0.45, rate: 0.9, male: true, hi: "Moin! Ich bin Bernd, der Baggerfahrer. Jetzt wird gebuddelt – und gelernt!" },
-  polizei: { e: "👮‍♂️", n: "Polizist Paul", pitch: 0.65, rate: 0.95, male: true, hi: "Guten Tag! Polizist Paul hier. Ich passe auf, dass du alles richtig machst!" },
-  feuer: { e: "👨‍🚒", n: "Feuerwehrmann Fred", pitch: 0.55, rate: 1, male: true, hi: "Tatü tata! Feuerwehrmann Fred ist zur Stelle. Los geht's!" }
+  held: { e: "🦸‍♂️", n: "Kapitän Blitz", pitch: 0.3, rate: 1, male: true, hi: "Keine Angst! Kapitän Blitz ist da! Zusammen schaffen wir jede Aufgabe!" },
+  bagger: { e: "🚜", n: "Baggerfahrer Bernd", pitch: 0.05, rate: 0.9, male: true, hi: "Moin! Ich bin Bernd, der Baggerfahrer. Jetzt wird gebuddelt – und gelernt!" },
+  polizei: { e: "👮‍♂️", n: "Polizist Paul", pitch: 0.2, rate: 0.95, male: true, hi: "Guten Tag! Polizist Paul hier. Ich passe auf, dass du alles richtig machst!" },
+  feuer: { e: "👨‍🚒", n: "Feuerwehrmann Fred", pitch: 0.12, rate: 0.95, male: true, hi: "Tatü tata! Feuerwehrmann Fred ist zur Stelle. Los geht's!" }
 };
 const stopSay = () => { try { speechSynthesis.cancel(); } catch (e) {} };
 
@@ -439,7 +440,8 @@ function renderSet() {
       <div class="set-row" style="display:block"><span>Wer liest vor?</span><div class="seg" style="margin-top:8px">${Object.entries(STYLE).map(([k, v]) => `<button data-style="${k}" aria-pressed="${(STYLE[s.style] ? s.style : "lumi") === k}" style="font-size:16px;height:auto;padding:6px 10px;display:flex;flex-direction:column;align-items:center"><span style="font-size:30px">${v.e}</span>${v.n}</button>`).join("")}</div></div>
       <div class="set-row"><span>Aufgaben automatisch vorlesen</span>${sw("auto", s.auto)}</div>
       <div class="set-row"><span>Töne</span>${sw("sfx", s.sfx)}</div>
-      <div class="set-row"><span>Stimme</span><select id="voiceSel"><option value="">Automatisch</option>${VOICES.map(v => `<option value="${esc(v.name)}" ${v.name === s.voice ? "selected" : ""}>${esc(v.name)}</option>`).join("")}</select></div>
+      <div class="set-row"><span>Handy-Stimme für ${esc((STYLE[s.style] || STYLE.lumi).n)}<br><span class="muted">${VOICES.length} deutsche Stimme${VOICES.length === 1 ? "" : "n"} auf dem Handy</span></span><select id="voiceSel"><option value="">Automatisch</option>${VOICES.map(v => `<option value="${esc(v.name)}" ${v.name === ((s.vmap || {})[s.style] || s.voice) ? "selected" : ""}>${esc(v.name)}</option>`).join("")}</select></div>
+      ${(STYLE[s.style] || {}).male ? `<div class="note" style="margin:6px 0 10px">👨 Klingt die Stimme noch zu sehr nach Frau? Dann auf dem Handy eine Männer-Stimme einstellen: Einstellungen → System → Sprachen → Sprachausgabe → Zahnrad bei „Sprachausgabe von Google“ → Sprachdaten installieren → Deutsch (Deutschland) → eine männliche Stimme antippen. Danach die App neu öffnen und hier oben die Stimme auswählen.</div>` : ""}
       <div class="set-row"><span>Sprechtempo</span><div class="seg">${[[0.8, "🐢"], [1, "🙂"], [1.15, "🐇"]].map(([r, l]) => `<button data-rate="${r}" aria-pressed="${s.rate === r}">${l}</button>`).join("")}</div></div>
       <div class="set-row"><span>Probe hören</span><button class="btn small ghost" data-act="test-voice">🔊 Hallo!</button></div>
       <div class="set-row"><span>Spracherkennung</span><span class="muted">${DICT ? "✅ bereit" : "❌ nicht in diesem Browser (Chrome benutzen)"}</span></div>
@@ -454,7 +456,7 @@ function renderSet() {
     </div>
     <p class="muted" style="text-align:center;margin-top:22px">Lern-App Klasse 1–6 · Version ${APP_VER}</p>
   </div>`;
-  $("#voiceSel").addEventListener("change", e => { G.set.voice = e.target.value; save(); say("Hallo! Ich lese dir die Aufgaben vor."); });
+  $("#voiceSel").addEventListener("change", e => { G.set.vmap = G.set.vmap || {}; G.set.vmap[G.set.style] = e.target.value; save(); say((STYLE[G.set.style] || STYLE.lumi).hi); });
   $("#restoreFile").addEventListener("change", e => { const f = e.target.files[0]; if (f) restore(f); });
 }
 function backup() {
