@@ -323,6 +323,12 @@ body.noscroll { overflow: hidden; }
 .tpl-grid svg { width: 100%; height: auto; aspect-ratio: 3 / 4; display: block; }
 .tpl-grid small { font-size: 13px; font-weight: 600; }
 .tpl-grid .blank { font-size: 46px; aspect-ratio: 3 / 4; display: grid; place-items: center; width: 100%; }
+/* Rückgängig-Knopf unten rechts auf der Malfläche */
+.paint-wrap { position: relative; }
+.pf-undo { position: absolute; right: 12px; bottom: 12px; z-index: 2; background: var(--org); color: #fff; font-weight: 600; font-size: 18px; padding: 10px 16px; border-radius: 16px; box-shadow: 0 4px 0 #c96a10; }
+.pf-undo:active { transform: translateY(3px); box-shadow: 0 1px 0 #c96a10; }
+.pf .pf-undo { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); right: 16px; }
+body.noscroll #toast { bottom: 90px; }
 </style>
 <script>if("serviceWorker" in navigator){var hadSW=!!navigator.serviceWorker.controller,reloaded=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(hadSW&&!reloaded){reloaded=true;location.reload()}});addEventListener("load",function(){navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(function(r){r.update()}).catch(function(){})});document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")navigator.serviceWorker.getRegistration().then(function(r){r&&r.update()})})}</script>
 </head><body>
@@ -1559,7 +1565,8 @@ function renderPaint() {
         <div class="pf-row">${colors}${stamps}</div>
         <div class="muted pf-hint" id="paintHint"></div>
       </div>
-      <canvas class="paint full" id="paintCv"></canvas></div>`;
+      <canvas class="paint full" id="paintCv"></canvas>
+      <button class="pf-undo" data-act="paint-undo">↩️ Rückgängig</button></div>`;
     initPaint(); paintSync();
     return;
   }
@@ -1579,8 +1586,7 @@ function renderPaint() {
     <div class="paint-tools"><span class="sizes">${sizes}</span></div>
     <div class="paint-tools">${stamps}</div>
     <div class="muted" id="paintHint" style="margin:-2px 0 6px"></div>
-    <canvas class="paint" id="paintCv"></canvas>
-    <div class="padbar"><button class="btn ghost small" data-act="paint-undo">↩️ Letzten Schritt weg</button></div>
+    <div class="paint-wrap"><canvas class="paint" id="paintCv"></canvas><button class="pf-undo" data-act="paint-undo">↩️ Rückgängig</button></div>
     ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="muted" style="margin-bottom:8px">📥 = aufs Handy speichern · ✖ = löschen</div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button></figure>`).join("")}</div>` : ""}
   </div>`;
   initPaint(); paintSync();
@@ -1858,7 +1864,7 @@ function paintClick(ds, el, act) {
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.9.0";
+const APP_VER = "1.9.1";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */

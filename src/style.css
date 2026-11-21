@@ -312,3 +312,9 @@ body.noscroll { overflow: hidden; }
 .tpl-grid svg { width: 100%; height: auto; aspect-ratio: 3 / 4; display: block; }
 .tpl-grid small { font-size: 13px; font-weight: 600; }
 .tpl-grid .blank { font-size: 46px; aspect-ratio: 3 / 4; display: grid; place-items: center; width: 100%; }
+/* Rückgängig-Knopf unten rechts auf der Malfläche */
+.paint-wrap { position: relative; }
+.pf-undo { position: absolute; right: 12px; bottom: 12px; z-index: 2; background: var(--org); color: #fff; font-weight: 600; font-size: 18px; padding: 10px 16px; border-radius: 16px; box-shadow: 0 4px 0 #c96a10; }
+.pf-undo:active { transform: translateY(3px); box-shadow: 0 1px 0 #c96a10; }
+.pf .pf-undo { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); right: 16px; }
+body.noscroll #toast { bottom: 90px; }

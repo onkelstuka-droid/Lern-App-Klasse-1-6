@@ -51,6 +51,7 @@ Wünsche (21.11.2026): Kinder Klasse 1–6; Buchstaben, Zahlen, Rechnen; mit dem
 - Zeichnung `PDOC = {shapes, tpl, aspect}`: Blatt mit festem Seitenverhältnis (Handy-Höhe/Breite), Koordinaten 0…1 → keine Verzerrung zwischen normal und ganzem Bildschirm. Ebenen: `base` (Striche + Füllungen) → Linien des Ausmalbilds (`line`, darüber) → Stempel → Auswahlrahmen.
 - Modi: 🖌️ Pinsel, 🪣 Füllen (Flood-Fill auf `base`, begrenzt durch Ausmalbild-Linien `lineMask` und durch andersfarbige Flächen; Linienrand wird mitgefärbt), 🧽 Schwamm, Stempel. „↩️“ entfernt den letzten Schritt (base wird neu aufgebaut).
 - „⛶ Ganzer Bildschirm“ (`paintFull`, Ebene in der Zurück-Navigation, Vollbild-API): oben kompakte Leiste (✖ Klein, Modi, Größen, ↩️, 💾, Farben, Stempel), Malfläche füllt den Rest.
+- 1.9.1: orangener Knopf „↩️ Rückgängig“ unten rechts auf der Malfläche (normal und ganzer Bildschirm), macht den letzten Schritt rückgängig.
 - Speichern speichert das Bild (ohne die Zeichnung zu löschen) in „Meine Bilder“ + Downloads.
 - 1.8.1: „💬 Schicken“ (WhatsApp) auf Wunsch des Nutzers komplett entfernt – klappte mit WhatsApp nicht; „Speichern reicht“. `exportPic` speichert nur noch (Download). Abschnitte oben zu Schicken/Teilen sind damit Geschichte.
 

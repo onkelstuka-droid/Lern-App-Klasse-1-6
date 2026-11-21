@@ -25,7 +25,8 @@ function renderPaint() {
         <div class="pf-row">${colors}${stamps}</div>
         <div class="muted pf-hint" id="paintHint"></div>
       </div>
-      <canvas class="paint full" id="paintCv"></canvas></div>`;
+      <canvas class="paint full" id="paintCv"></canvas>
+      <button class="pf-undo" data-act="paint-undo">↩️ Rückgängig</button></div>`;
     initPaint(); paintSync();
     return;
   }
@@ -45,8 +46,7 @@ function renderPaint() {
     <div class="paint-tools"><span class="sizes">${sizes}</span></div>
     <div class="paint-tools">${stamps}</div>
     <div class="muted" id="paintHint" style="margin:-2px 0 6px"></div>
-    <canvas class="paint" id="paintCv"></canvas>
-    <div class="padbar"><button class="btn ghost small" data-act="paint-undo">↩️ Letzten Schritt weg</button></div>
+    <div class="paint-wrap"><canvas class="paint" id="paintCv"></canvas><button class="pf-undo" data-act="paint-undo">↩️ Rückgängig</button></div>
     ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="muted" style="margin-bottom:8px">📥 = aufs Handy speichern · ✖ = löschen</div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button></figure>`).join("")}</div>` : ""}
   </div>`;
   initPaint(); paintSync();
