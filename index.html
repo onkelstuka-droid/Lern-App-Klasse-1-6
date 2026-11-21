@@ -253,7 +253,7 @@ canvas.draw { width: 100%; height: min(58vh, 330px); display: block; touch-actio
 .sw[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--ink); transform: scale(1.1); }
 .tool { min-width: 44px; height: 44px; border-radius: 14px; background: #fff; box-shadow: 0 3px 0 var(--line); font-size: 22px; padding: 0 8px; }
 .tool[aria-pressed="true"] { background: var(--ink); color: #fff; }
-canvas.paint { width: 100%; height: 58vh; background: #fff; border-radius: 20px; box-shadow: var(--sh); touch-action: none; display: block; }
+canvas.paint { width: 100%; height: 50vh; background: #fff; border-radius: 20px; box-shadow: var(--sh); touch-action: none; display: block; }
 .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .gallery figure { margin: 0; position: relative; }
 .gallery img { width: 100%; border-radius: 14px; box-shadow: var(--sh); display: block; background: #fff; }
@@ -298,6 +298,9 @@ canvas.paint { width: 100%; height: 58vh; background: #fff; border-radius: 20px;
 @keyframes fadein { from { opacity: 0; } }
 .gallery button.exp { top: auto; bottom: 4px; }
 .gallery button.shr { top: auto; bottom: 4px; right: 38px; }
+.paint-main { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 6px; }
+.paint-main .btn { padding: 0 8px; font-size: 17px; min-height: 50px; white-space: nowrap; }
+.btn.wa { background: #25d366; box-shadow: 0 5px 0 #179e4a; }
 </style>
 <script>if("serviceWorker" in navigator){var hadSW=!!navigator.serviceWorker.controller,reloaded=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(hadSW&&!reloaded){reloaded=true;location.reload()}});addEventListener("load",function(){navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(function(r){r.update()}).catch(function(){})});document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")navigator.serviceWorker.getRegistration().then(function(r){r&&r.update()})})}</script>
 </head><body>
@@ -1197,6 +1200,92 @@ U("r_dez", "rech", 6, "🔸", "Rechnen mit Dezimalzahlen", T10(dezTask));
 U("r_proz", "rech", 6, "💯", "Prozent", T10(prozTask));
 U("r_drei", "rech", 6, "🛒", "Dreisatz", T10(dreiTask));
 
+/* ---------- Textaufgaben (Sachaufgaben) ---------- */
+const KIDS = [["Paul", "er"], ["Mia", "sie"], ["Ali", "er"], ["Lena", "sie"], ["Tim", "er"], ["Emma", "sie"], ["Noah", "er"], ["Sofia", "sie"], ["Ben", "er"], ["Lara", "sie"]];
+const DING = [
+  { e: "🍎", sg: "Apfel", pl: "Äpfel", dat: "Äpfeln", weg: "fallen auf den Boden" },
+  { e: "🍬", sg: "Bonbon", pl: "Bonbons", dat: "Bonbons", weg: "isst {er} auf" },
+  { e: "🎈", sg: "Luftballon", pl: "Luftballons", dat: "Luftballons", weg: "fliegen davon" },
+  { e: "✏️", sg: "Stift", pl: "Stifte", dat: "Stiften", weg: "verliert {er}" },
+  { e: "🍪", sg: "Keks", pl: "Kekse", dat: "Keksen", weg: "isst {er} auf" },
+  { e: "🚗", sg: "Spielzeugauto", pl: "Spielzeugautos", dat: "Spielzeugautos", weg: "verschenkt {er}" },
+  { e: "🌸", sg: "Blume", pl: "Blumen", dat: "Blumen", weg: "verschenkt {er}" },
+  { e: "🥚", sg: "Ei", pl: "Eier", dat: "Eiern", weg: "gehen kaputt" },
+  { e: "⭐", sg: "Sticker", pl: "Sticker", dat: "Stickern", weg: "klebt {er} in sein Heft" },
+  { e: "🔵", sg: "Murmel", pl: "Murmeln", dat: "Murmeln", weg: "rollen unter das Sofa" },
+  { e: "🍓", sg: "Erdbeere", pl: "Erdbeeren", dat: "Erdbeeren", weg: "isst {er} auf" }
+];
+const cap = w => w[0].toUpperCase() + w.slice(1);
+const anz = (n, d) => `${n} ${n === 1 ? d.sg : d.pl}`;
+function twoKids() { const [a, b] = sample(KIDS, 2); return [a, b]; }
+/* „weg“-Satz: „2 Äpfel fallen auf den Boden.“ / „2 Kekse isst er auf.“ (Verb vorne bei „{er}“) */
+function wegSatz(d, n, er) {
+  if (d.weg.includes("{er}")) { const w = d.weg.replace("{er}", er).replace("sein Heft", er === "sie" ? "ihr Heft" : "sein Heft"); return `${anz(n, d)} ${w}.`; }
+  return `${anz(n, d)} ${d.weg}.`;
+}
+function textTask(q, a, hint, o = {}) { return N(q, a, { hint, say: o.say || q, cls: "", key: undefined, ...o }); }
+const euroTxt = c => (c % 100 ? `${Math.floor(c / 100)},${pad2(c % 100)} €` : `${c / 100} €`);
+const euroSay = c => (c < 100 ? `${c} Cent` : c % 100 ? `${Math.floor(c / 100)} Euro ${c % 100}` : `${c / 100} Euro`);
+function sachTask(cls, max) {
+  const [[n, er], [m]] = twoKids(), d = pick(DING), Er = cap(er);
+  const k = R(0, 99);
+  if (cls === 1) {
+    const kind = k % 5;
+    if (kind === 0) { const a = R(1, max - 1), b = R(1, max - a); return textTask(`${n} hat ${anz(a, d)}. ${Er} bekommt ${b} dazu. Wie viele ${d.pl} hat ${er} jetzt?`, a + b, `${a} + ${b} = ${a + b}`, { vis: max <= 10 ? V.pics(a, "+", b, d.e) : V.emo(d.e) }); }
+    if (kind === 1) { const a = R(3, max), b = R(2, a - 1); return textTask(`${n} hat ${anz(a, d)}. ${wegSatz(d, b, er)} Wie viele ${d.pl} hat ${er} noch?`, a - b, `${a} − ${b} = ${a - b}`, { vis: max <= 10 ? V.pics(a, "−", b, d.e) : V.emo(d.e) }); }
+    if (kind === 2) { const a = R(1, max - 1), b = R(1, max - a); return textTask(`${n} hat ${anz(a, d)}. ${m} hat ${anz(b, d)}. Wie viele ${d.pl} haben beide zusammen?`, a + b, `${a} + ${b} = ${a + b}`, { vis: max <= 10 ? V.pics(a, "+", b, d.e) : V.emo(d.e) }); }
+    if (kind === 3) { const a = R(3, max), b = R(2, a - 1); return textTask(`Im Bus sitzen ${a} Kinder. An der Haltestelle steigen ${b} Kinder aus. Wie viele Kinder sitzen noch im Bus?`, a - b, `${a} − ${b} = ${a - b}`, { vis: V.emo("🚌") }); }
+    const a = R(2, max), b = R(1, a - 1); return textTask(`${n} hat ${anz(a, d)}. ${m} hat ${anz(b, d)}. Wie viele ${d.pl} hat ${n} mehr als ${m}?`, a - b, `${a} − ${b} = ${a - b}`, { vis: V.emo(d.e) });
+  }
+  if (cls === 2) {
+    const kind = k % 6;
+    if (kind === 0) { const p = R(2, 10), j = R(2, 10); return textTask(`${n} kauft ${p} Tüten mit je ${j} ${j === 1 ? d.sg : d.dat}. Wie viele ${d.pl} sind das zusammen?`, p * j, `${p} · ${j} = ${p * j}`, { vis: V.emo(d.e) }); }
+    if (kind === 1) { const kinder = R(2, 6), j = R(2, 10), x = kinder * j; return textTask(`${n} verteilt ${x} ${d.pl} gerecht an ${kinder} Kinder. Wie viele ${d.pl} bekommt jedes Kind?`, j, `${x} : ${kinder} = ${j}`, { vis: V.emo(d.e) }); }
+    if (kind === 2) { const g = R(20, 100), p = R(5, g - 1); return textTask(`${n} hat ${g} €. ${Er} kauft ein Spiel für ${p} €. Wie viel Geld hat ${er} noch?`, g - p, `${g} − ${p} = ${g - p}`, { vis: V.emo("💶") }); }
+    if (kind === 3) { const t = pick([["Hunde", 4, "🐶"], ["Katzen", 4, "🐱"], ["Hühner", 2, "🐔"], ["Enten", 2, "🦆"], ["Spinnen", 8, "🕷️"]]), z = R(2, 10); return textTask(`Auf dem Hof sind ${z} ${t[0]}. Wie viele Beine haben sie zusammen?`, z * t[1], `Jedes Tier hat ${t[1]} Beine: ${z} · ${t[1]} = ${z * t[1]}`, { vis: V.emo(t[2]) }); }
+    if (kind === 4) { const a = R(20, 80), b = R(5, 100 - a); return textTask(`In der Klasse 2a sind ${a} Bücher im Regal. Die Lehrerin bringt ${b} neue Bücher mit. Wie viele Bücher sind es jetzt?`, a + b, `${a} + ${b} = ${a + b}`, { vis: V.emo("📚") }); }
+    const a = R(30, 100), b = R(5, a - 10); return textTask(`${n} hat ${a} Sticker. ${Er} schenkt ${m} ${b} Sticker. Wie viele Sticker hat ${er} noch?`, a - b, `${a} − ${b} = ${a - b}`, { vis: V.emo("⭐") });
+  }
+  if (cls === 3) {
+    const kind = k % 5;
+    if (kind === 0) { const a = R(120, 500), b = R(100, 1000 - a); return textTask(`Ein Fahrrad kostet ${a} €, ein Helm ${b - b % 5} €. Wie viel kostet beides zusammen?`, a + b - b % 5, `${a} + ${b - b % 5} = ${a + b - b % 5}`, { vis: V.emo("🚲") }); }
+    if (kind === 1) { const kinder = R(20, 30), plaetze = pick([4, 5, 6]); const autos = Math.ceil(kinder / plaetze); return textTask(`${kinder} Kinder fahren zum Ausflug. In jedes Auto passen ${plaetze} Kinder. Wie viele Autos braucht man mindestens?`, autos, `${kinder} : ${plaetze} = ${Math.floor(kinder / plaetze)} Rest ${kinder % plaetze}${kinder % plaetze ? " → für den Rest braucht man noch ein Auto" : ""}. Also ${autos} Autos.`, { vis: V.emo("🚗") }); }
+    if (kind === 2) { const h = R(2, 9), p = R(2, 6), z = pick([20, 50]); if (h * p >= z) return null; return textTask(`${n} kauft ${h} Hefte zu je ${p} €. ${Er} bezahlt mit einem ${z}-€-Schein. Wie viel Geld bekommt ${er} zurück?`, z - h * p, `${h} · ${p} = ${h * p} €, ${z} − ${h * p} = ${z - h * p} €`, { vis: V.emo("💶") }); }
+    if (kind === 3) { const r = R(3, 9), j = R(4, 9); return textTask(`Im Garten stehen ${r} Reihen mit je ${j} Blumen. Wie viele Blumen sind es?`, r * j, `${r} · ${j} = ${r * j}`, { vis: V.emo("🌷") }); }
+    const a = R(300, 900), b = R(50, a - 100); return textTask(`Bis zu Omas Haus sind es ${a} m. ${n} ist schon ${b} m gelaufen. Wie viele Meter fehlen noch?`, a - b, `${a} − ${b} = ${a - b}`, { vis: V.emo("🏡"), say: `Bis zu Omas Haus sind es ${a} Meter. ${n} ist schon ${b} Meter gelaufen. Wie viele Meter fehlen noch?` });
+  }
+  if (cls === 4) {
+    const kind = k % 5;
+    if (kind === 0) { const w = R(6, 12), pl = pick([48, 56, 64, 72, 80]), f = R(20, 120); return textTask(`Ein Zug hat ${w} Wagen mit je ${pl} Plätzen. ${f} Plätze sind frei. Wie viele Menschen sitzen im Zug?`, w * pl - f, `${w} · ${pl} = ${w * pl}, ${w * pl} − ${f} = ${w * pl - f}`, { vis: V.emo("🚆") }); }
+    if (kind === 1) { const a = R(120, 480), b = R(120, 480), c = R(120, 480); return textTask(`Beim Schulfest verdient Klasse 4a ${a} €, Klasse 4b ${b} € und Klasse 4c ${c} €. Wie viel Geld ist das zusammen?`, a + b + c, `${a} + ${b} + ${c} = ${a + b + c}`, { vis: V.emo("🎪") }); }
+    if (kind === 2) { const sk = pick([5, 10, 25]), n2 = R(12, 80), x = sk * n2; return textTask(`Ein Bauer erntet ${x} kg Kartoffeln. Er füllt sie in Säcke mit je ${sk} kg. Wie viele Säcke werden voll?`, n2, `${x} : ${sk} = ${n2}`, { vis: V.emo("🥔"), say: `Ein Bauer erntet ${x} Kilogramm Kartoffeln. Er füllt sie in Säcke mit je ${sk} Kilogramm. Wie viele Säcke werden voll?` }); }
+    if (kind === 3) { const a = R(400, 1200), b = R(100, a - 100); return textTask(`Familie Becker fährt ${a} km in den Urlaub. Nach ${b} km machen sie Pause. Wie viele Kilometer sind es noch?`, a - b, `${a} − ${b} = ${a - b}`, { vis: V.emo("🚙"), say: `Familie Becker fährt ${a} Kilometer in den Urlaub. Nach ${b} Kilometern machen sie Pause. Wie viele Kilometer sind es noch?` }); }
+    const t = R(3, 8), e = pick([12, 15, 18, 24, 25]); return textTask(`Ein Eintritt ins Schwimmbad kostet ${e} €. ${n} geht mit ${t - 1} Freunden hin. Wie viel kostet der Eintritt für alle zusammen?`, t * e, `${t} Kinder · ${e} € = ${t * e} €`, { vis: V.emo("🏊") });
+  }
+  if (cls === 5) {
+    const kind = k % 5;
+    if (kind === 0) { const r = R(10, 25), p = R(12, 30), v = R(50, r * p - 10); return textTask(`Ein Kino hat ${r} Reihen mit je ${p} Plätzen. ${v} Karten sind verkauft. Wie viele Plätze sind noch frei?`, r * p - v, `${r} · ${p} = ${r * p}, ${r * p} − ${v} = ${r * p - v}`, { vis: V.emo("🎬") }); }
+    if (kind === 1) { const t = R(-9, -1), d2 = R(3, 15); return textTask(`Am Morgen ist es ${fmtN(t)} °C. Bis zum Mittag wird es ${d2} Grad wärmer. Wie warm ist es mittags?`, t + d2, `${fmtN(t)} + ${d2} = ${fmtN(t + d2)}`, { vis: V.thermo(t), neg: true, say: `Am Morgen ist es minus ${-t} Grad. Bis zum Mittag wird es ${d2} Grad wärmer. Wie warm ist es mittags?` }); }
+    if (kind === 2) { const l = R(3, 9), b = R(3, 7); return textTask(`Ein Zimmer ist ${l} m lang und ${b} m breit. Wie viele Quadratmeter Teppich braucht man?`, l * b, `Fläche = Länge · Breite = ${l} · ${b} = ${l * b} m²`, { vis: V.rect(l, b).replace(/ cm/g, " m"), say: `Ein Zimmer ist ${l} Meter lang und ${b} Meter breit. Wie viele Quadratmeter Teppich braucht man?` }); }
+    if (kind === 3) { const nn = pick([2, 3, 4, 5]), tot = nn * R(3, 10), z = R(1, nn - 1); return textTask(`${n} hat ${tot} Murmeln. ${Er} schenkt ${m} ${frs(z, nn)} davon. Wie viele Murmeln bekommt ${m}?`, (tot / nn) * z, `${tot} : ${nn} = ${tot / nn}, dann · ${z} = ${(tot / nn) * z}`, { vis: V.emo("🔵") }); }
+    const s1 = R(2, 9), p1 = R(3, 9), s2 = R(2, 9), p2 = R(2, 6); return textTask(`${n} kauft ${s1} Comics zu je ${p1} € und ${s2} Stifte zu je ${p2} €. Wie viel muss ${er} bezahlen?`, s1 * p1 + s2 * p2, `${s1} · ${p1} + ${s2} · ${p2} = ${s1 * p1} + ${s2 * p2} = ${s1 * p1 + s2 * p2}`, { vis: V.emo("🛍️") });
+  }
+  // Klasse 6
+  const kind = k % 5;
+  if (kind === 0) { const pr = pick([40, 60, 80, 120, 200, 240, 300]), r = pick([10, 20, 25, 50]); if ((pr * r) % 100) return null; return textTask(`Ein Fahrrad kostet ${pr} €. Im Angebot gibt es ${r} % Rabatt. Wie viel kostet es jetzt?`, pr - (pr * r) / 100, `${r} % von ${pr} € = ${(pr * r) / 100} €, ${pr} − ${(pr * r) / 100} = ${pr - (pr * r) / 100} €`, { vis: V.emo("🚲") }); }
+  if (kind === 1) { const h = R(2, 5), ph = pick([80, 120, 150, 95]), st = pick([150, 250, 199]), tot = h * ph + st; return textTask(`${n} kauft ${h} Hefte zu je ${euroTxt(ph)} und einen Füller für ${euroTxt(st)}. Wie viel Euro muss ${er} bezahlen?`, tot / 100, `${h} · ${euroTxt(ph)} + ${euroTxt(st)} = ${euroTxt(tot)}`, { vis: V.emo("🖊️"), dec: true, say: `${n} kauft ${h} Hefte zu je ${euroSay(ph)} und einen Füller für ${euroSay(st)}. Wie viel Euro muss ${er} bezahlen?` }); }
+  if (kind === 2) { const days = 4, avg = R(3, 8), a = [avg + 1, avg - 1, avg + 2, avg - 2].map(x => Math.max(1, x)); const sum = a.reduce((x, y) => x + y, 0); if (sum % days) return null; return textTask(`${n} läuft an vier Tagen ${a.join(" km, ")} km. Wie viele Kilometer sind das im Durchschnitt pro Tag?`, sum / days, `Alles zusammen: ${sum} km, geteilt durch ${days} Tage = ${sum / days} km`, { vis: V.emo("🏃"), say: `${n} läuft an vier Tagen ${a.join(" Kilometer, ")} Kilometer. Wie viele Kilometer sind das im Durchschnitt pro Tag?` }); }
+  if (kind === 3) { const kl = pick([24, 28, 32]), [z, nn] = pick([[3, 4], [1, 2], [1, 4], [5, 8], [3, 8]]); if ((kl * z) % nn) return null; return textTask(`In einer Klasse sind ${kl} Kinder. ${frs(z, nn)} davon kommen mit dem Bus. Wie viele Kinder kommen mit dem Bus?`, (kl * z) / nn, `${kl} : ${nn} = ${kl / nn}, · ${z} = ${(kl * z) / nn}`, { vis: V.emo("🚌") }); }
+  const l = R(3, 8), lit = pick([6, 8, 10, 12]); return textTask(`Ein Auto braucht ${lit} Liter Benzin für 100 km. Wie viele Liter braucht es für ${l * 100} km?`, lit * l, `${l * 100} km sind ${l}-mal 100 km: ${l} · ${lit} = ${lit * l} Liter`, { vis: V.emo("⛽"), say: `Ein Auto braucht ${lit} Liter Benzin für 100 Kilometer. Wie viele Liter braucht es für ${l * 100} Kilometer?` });
+}
+U("r_text1", "rech", 1, "📝", "Textaufgaben bis 10", T10(() => sachTask(1, 10)));
+U("r_text1b", "rech", 1, "📝", "Textaufgaben bis 20", T10(() => sachTask(1, 20)));
+U("r_text2", "rech", 2, "📝", "Textaufgaben", T10(() => sachTask(2)));
+U("r_text3", "rech", 3, "📝", "Textaufgaben", T10(() => sachTask(3)));
+U("r_text4", "rech", 4, "📝", "Textaufgaben", T10(() => sachTask(4)));
+U("r_text5", "rech", 5, "📝", "Textaufgaben", T10(() => sachTask(5)));
+U("r_text6", "rech", 6, "📝", "Textaufgaben", T10(() => sachTask(6)));
+
 /* --- Schreiben --- */
 U("s_gross", "schr", 1, "🅰️", "Große Buchstaben nachspuren", () => sample([...ABC, "Ä", "Ö", "Ü"], 6).map(ch => ({ type: "trace", g: ch, q: `Fahr das große ${ch} nach.`, say: `Fahr das große ${ch} mit dem Finger nach.`, key: "S:" + ch })));
 U("s_klein", "schr", 1, "🔡", "Kleine Buchstaben nachspuren", () => sample([...GL_LOW, "ä", "ö", "ü", "ß"], 6).map(ch => ({ type: "trace", g: ch, q: `Fahr das kleine ${ch} nach.`, say: `Fahr das kleine ${ch} mit dem Finger nach.`, key: "S:" + ch })));
@@ -1256,7 +1345,7 @@ const AREA = Object.fromEntries(AREAS.map(a => [a.id, a]));
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.4.1";
+const APP_VER = "1.5.0";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */
@@ -1758,12 +1847,17 @@ function renderPaint() {
   const pics = loadPics();
   app().innerHTML = `<div class="wrap">
     <div class="head"><button class="icon-btn" data-act="back" aria-label="Zurück">⬅️</button><div class="t">🎨 Malen</div></div>
+    <div class="paint-main">
+      <button class="btn green" data-act="paint-save">💾 Speichern</button>
+      <button class="btn wa" data-act="paint-share">💬 Schicken</button>
+      <button class="btn ghost" data-act="paint-clear">🧽 Neu</button>
+    </div>
     <div class="paint-tools">${PAINT_COLORS.map(c => `<button class="sw" data-color="${c}" style="background:${c}" aria-pressed="${!PNT.stamp && PNT.c === c}" aria-label="Farbe"></button>`).join("")}</div>
     <div class="paint-tools">${[[5, "•"], [10, "●"], [22, "⬤"]].map(([w, l]) => `<button class="tool" data-width="${w}" aria-pressed="${PNT.w === w}">${l}</button>`).join("")}
       ${STAMPS.map(s => `<button class="tool" data-stamp="${s}" aria-pressed="${PNT.stamp === s}">${s}</button>`).join("")}</div>
     <canvas class="paint" id="paintCv"></canvas>
-    <div class="padbar"><button class="btn ghost small" data-act="paint-undo">↩️ Zurück</button><button class="btn ghost small" data-act="paint-clear">🧽 Alles weg</button><button class="btn green small" data-act="paint-save">🖼️ In meine Bilder</button><button class="btn small" data-act="paint-export">📥 Aufs Handy</button><button class="btn small" style="background:#25d366;box-shadow:0 5px 0 #179e4a" data-act="paint-share">💬 Teilen</button></div>
-    ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button><button class="shr" data-shrpic="${i}" aria-label="Teilen">💬</button></figure>`).join("")}</div>` : ""}
+    <div class="padbar"><button class="btn ghost small" data-act="paint-undo">↩️ Letzten Strich weg</button></div>
+    ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="muted" style="margin-bottom:8px">📥 = aufs Handy speichern · 💬 = verschicken (z. B. WhatsApp) · ✖ = löschen</div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button><button class="shr" data-shrpic="${i}" aria-label="Teilen">💬</button></figure>`).join("")}</div>` : ""}
   </div>`;
   initPaint();
 }
@@ -1800,24 +1894,26 @@ async function exportPic(src, share = false) {
     const blob = await (await fetch(src)).blob();
     const d = new Date(), name = `Lern-App-Bild-${dayStr(d)}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}.${blob.type === "image/png" ? "png" : "jpg"}`;
     const file = new File([blob], name, { type: blob.type });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    if (share && navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share(share ? { files: [file], title: "Mein Bild", text: `Schau mal, was ich gemalt habe! 🎨 ${P() ? "– " + P().name : ""}` } : { files: [file], title: "Mein Bild" }); return; } catch (e) { if (e && e.name === "AbortError") return; }
     }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    toast(share ? "Teilen geht hier nicht direkt. Das Bild liegt in „Downloads“ – in WhatsApp über 📎 anhängen." : "Bild gespeichert (Ordner „Downloads“). 🖼️");
+    if (share) toast("Verschicken geht hier nicht direkt. Das Bild liegt im Ordner „Downloads“ – in WhatsApp über 📎 anhängen.");
+    return true;
   } catch (e) { toast("Speichern hat nicht geklappt."); }
 }
-function savePaint() {
+function savePaint() { // in „Meine Bilder“ und als Bild-Datei aufs Handy (Ordner „Downloads“)
   if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️");
   const src = PAINT.cv, w = 480, h = Math.round((src.height / src.width) * w), c = document.createElement("canvas");
   c.width = w; c.height = h; c.getContext("2d").drawImage(src, 0, 0, w, h);
   const pics = loadPics(); pics.unshift(c.toDataURL("image/jpeg", 0.72));
   while (pics.length > 12) pics.pop();
   try { localStorage.setItem(picKey(), JSON.stringify(pics)); } catch (e) { pics.pop(); try { localStorage.setItem(picKey(), JSON.stringify(pics.slice(0, 6))); } catch (e2) {} }
-  PAINT.shapes = []; confetti(14); tone([523, 659, 784]); toast("Bild gespeichert! 🖼️"); renderPaint();
+  exportPic(src.toDataURL("image/png")).then(ok => { if (ok) toast("Gespeichert! 🖼️ Unter „Meine Bilder“ und auf dem Handy im Ordner „Downloads“."); });
+  PAINT.shapes = []; confetti(14); tone([523, 659, 784]); renderPaint();
 }
 
 /* ======================= ÜBEN ======================= */

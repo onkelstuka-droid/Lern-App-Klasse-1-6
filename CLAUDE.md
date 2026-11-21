@@ -19,7 +19,8 @@ Wünsche (21.11.2026): Kinder Klasse 1–6; Buchstaben, Zahlen, Rechnen; mit dem
 - Sicherung als JSON-Datei in den Einstellungen.
 
 ## Lektionen (units.js)
-- 6 Fächer (`AREAS`): Buchstaben (Kl. 1–2), Zahlen, Rechnen, Schreiben, „Was ist das?“ (sprechen), Deutsch. 131 Lektionen, Verteilung Kl.1: 38, Kl.2: 26, Kl.3: 18, Kl.4: 16, Kl.5: 16, Kl.6: 17.
+- 6 Fächer (`AREAS`): Buchstaben (Kl. 1–2), Zahlen, Rechnen, Schreiben, „Was ist das?“ (sprechen), Deutsch. 138 Lektionen, Verteilung Kl.1: 40, Kl.2: 27, Kl.3: 19, Kl.4: 17, Kl.5: 17, Kl.6: 18.
+- Textaufgaben (1.5, Wunsch: „Paul hat 8 Äpfel, 2 fallen runter …“): `sachTask(klasse, max)` mit Kindernamen (`KIDS`, er/sie) und Dingen (`DING`: Einzahl/Mehrzahl/Dativ, „weg“-Satz). Lektionen `r_text1` (bis 10, mit Bildchen), `r_text1b` (bis 20), `r_text2`–`r_text6` (Klasse 2: mal/geteilt, Geld, Beine; 3: Rückgeld, Autos mit Rest; 4: große Zahlen, kg, km; 5: Kino, Temperatur, Fläche, Bruchteil; 6: Rabatt, Euro mit Komma, Durchschnitt, Bruchteil, Verbrauch).
 - `U(id, fach, klasse, icon, name, gen)` – `gen()` erzeugt bei jedem Start neue Aufgaben. Neue Lektion = eine `U(...)`-Zeile.
 - Aufgaben-Arten: `choice` (antippen, `ot` = big/emoji/word, 2 Versuche, bei 2 Antworten 1), `num` (Ziffernblock + 🎤 Zahl sagen, `neg`/`dec` für Minus-/Komma-Taste), `speak` (Spracherkennung, `fb` = Ersatz-Auswahl für „Lieber antippen“ oder Browser ohne Spracherkennung), `trace` (nachspuren), `write` (frei schreiben, Erkennung), `type` (Diktat).
 - Falsch beim ersten Versuch → Aufgabe kommt am Ende der Runde nochmal (max. 5).
@@ -39,7 +40,7 @@ Wünsche (21.11.2026): Kinder Klasse 1–6; Buchstaben, Zahlen, Rechnen; mit dem
 
 ## Malen und Fenster (1.4)
 - Keine `confirm()`-Fenster mehr (die zeigten „http://onkelstuka-droid.github.io“, Nutzer wollte seinen Namen dort nicht sehen) – stattdessen eigenes Fenster `ask(text, ja, nein, bild)` → Promise.
-- Malen: „🖼️ In meine Bilder“ (Galerie in der App, max. 12, `lernapp_bilder_<id>`) und „📥 Aufs Handy“ (`exportPic`): Teilen-Menü von Android (Fotos/Drive/Dateien-Ordner wählbar), sonst Download nach „Downloads“. Auch jedes Galerie-Bild hat 📥. „💬 Teilen“ (1.4.1, Wunsch: Bild per WhatsApp an die Oma/Mutter) = Teilen-Menü mit Bild + Text „Schau mal, was ich gemalt habe!“. Einen Ordner direkt anlegen kann eine Web-App auf Android nicht.
+- Malen (1.5, Nutzer fand die Knöpfe unter der Malfläche nicht): oben drei große Knöpfe „💾 Speichern“ (in „Meine Bilder“, max. 12, `lernapp_bilder_<id>`, UND als PNG in „Downloads“ über `exportPic`), „💬 Schicken“ (Teilen-Menü, z. B. WhatsApp), „🧽 Neu“. Galerie-Bilder: 📥 speichern, 💬 verschicken, ✖ löschen. „💬 Teilen“ (1.4.1, Wunsch: Bild per WhatsApp an die Oma/Mutter) = Teilen-Menü mit Bild + Text „Schau mal, was ich gemalt habe!“. Einen Ordner direkt anlegen kann eine Web-App auf Android nicht.
 - Einstellungen → „App weitergeben“ (`shareApp`): Link teilen. App ist kostenlos, ohne Anmeldung; jedes Handy hat eigenen Fortschritt (nur localStorage).
 
 ## Arbeitsweise

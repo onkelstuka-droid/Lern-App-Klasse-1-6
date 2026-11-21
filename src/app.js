@@ -1,7 +1,7 @@
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.4.1";
+const APP_VER = "1.5.0";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */
@@ -503,12 +503,17 @@ function renderPaint() {
   const pics = loadPics();
   app().innerHTML = `<div class="wrap">
     <div class="head"><button class="icon-btn" data-act="back" aria-label="Zurück">⬅️</button><div class="t">🎨 Malen</div></div>
+    <div class="paint-main">
+      <button class="btn green" data-act="paint-save">💾 Speichern</button>
+      <button class="btn wa" data-act="paint-share">💬 Schicken</button>
+      <button class="btn ghost" data-act="paint-clear">🧽 Neu</button>
+    </div>
     <div class="paint-tools">${PAINT_COLORS.map(c => `<button class="sw" data-color="${c}" style="background:${c}" aria-pressed="${!PNT.stamp && PNT.c === c}" aria-label="Farbe"></button>`).join("")}</div>
     <div class="paint-tools">${[[5, "•"], [10, "●"], [22, "⬤"]].map(([w, l]) => `<button class="tool" data-width="${w}" aria-pressed="${PNT.w === w}">${l}</button>`).join("")}
       ${STAMPS.map(s => `<button class="tool" data-stamp="${s}" aria-pressed="${PNT.stamp === s}">${s}</button>`).join("")}</div>
     <canvas class="paint" id="paintCv"></canvas>
-    <div class="padbar"><button class="btn ghost small" data-act="paint-undo">↩️ Zurück</button><button class="btn ghost small" data-act="paint-clear">🧽 Alles weg</button><button class="btn green small" data-act="paint-save">🖼️ In meine Bilder</button><button class="btn small" data-act="paint-export">📥 Aufs Handy</button><button class="btn small" style="background:#25d366;box-shadow:0 5px 0 #179e4a" data-act="paint-share">💬 Teilen</button></div>
-    ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button><button class="shr" data-shrpic="${i}" aria-label="Teilen">💬</button></figure>`).join("")}</div>` : ""}
+    <div class="padbar"><button class="btn ghost small" data-act="paint-undo">↩️ Letzten Strich weg</button></div>
+    ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="muted" style="margin-bottom:8px">📥 = aufs Handy speichern · 💬 = verschicken (z. B. WhatsApp) · ✖ = löschen</div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button><button class="shr" data-shrpic="${i}" aria-label="Teilen">💬</button></figure>`).join("")}</div>` : ""}
   </div>`;
   initPaint();
 }
@@ -545,24 +550,26 @@ async function exportPic(src, share = false) {
     const blob = await (await fetch(src)).blob();
     const d = new Date(), name = `Lern-App-Bild-${dayStr(d)}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}.${blob.type === "image/png" ? "png" : "jpg"}`;
     const file = new File([blob], name, { type: blob.type });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    if (share && navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share(share ? { files: [file], title: "Mein Bild", text: `Schau mal, was ich gemalt habe! 🎨 ${P() ? "– " + P().name : ""}` } : { files: [file], title: "Mein Bild" }); return; } catch (e) { if (e && e.name === "AbortError") return; }
     }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    toast(share ? "Teilen geht hier nicht direkt. Das Bild liegt in „Downloads“ – in WhatsApp über 📎 anhängen." : "Bild gespeichert (Ordner „Downloads“). 🖼️");
+    if (share) toast("Verschicken geht hier nicht direkt. Das Bild liegt im Ordner „Downloads“ – in WhatsApp über 📎 anhängen.");
+    return true;
   } catch (e) { toast("Speichern hat nicht geklappt."); }
 }
-function savePaint() {
+function savePaint() { // in „Meine Bilder“ und als Bild-Datei aufs Handy (Ordner „Downloads“)
   if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️");
   const src = PAINT.cv, w = 480, h = Math.round((src.height / src.width) * w), c = document.createElement("canvas");
   c.width = w; c.height = h; c.getContext("2d").drawImage(src, 0, 0, w, h);
   const pics = loadPics(); pics.unshift(c.toDataURL("image/jpeg", 0.72));
   while (pics.length > 12) pics.pop();
   try { localStorage.setItem(picKey(), JSON.stringify(pics)); } catch (e) { pics.pop(); try { localStorage.setItem(picKey(), JSON.stringify(pics.slice(0, 6))); } catch (e2) {} }
-  PAINT.shapes = []; confetti(14); tone([523, 659, 784]); toast("Bild gespeichert! 🖼️"); renderPaint();
+  exportPic(src.toDataURL("image/png")).then(ok => { if (ok) toast("Gespeichert! 🖼️ Unter „Meine Bilder“ und auf dem Handy im Ordner „Downloads“."); });
+  PAINT.shapes = []; confetti(14); tone([523, 659, 784]); renderPaint();
 }
 
 /* ======================= ÜBEN ======================= */
