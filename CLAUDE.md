@@ -43,6 +43,8 @@ Wünsche (21.11.2026): Kinder Klasse 1–6; Buchstaben, Zahlen, Rechnen; mit dem
 - Malen (1.5, Nutzer fand die Knöpfe unter der Malfläche nicht): oben drei große Knöpfe „💾 Speichern“ (in „Meine Bilder“, max. 12, `lernapp_bilder_<id>`, UND als PNG in „Downloads“ über `exportPic`), „💬 Schicken“ (Teilen-Menü, z. B. WhatsApp), „🧽 Neu“. Galerie-Bilder: 📥 speichern, 💬 verschicken, ✖ löschen. 1.5.1 (Schicken gab Fehler am Handy): Bild-Datei wird synchron aus der Data-URL gebaut (`picFile`), damit `navigator.share` noch direkt nach dem Tippen läuft (vorher `await fetch` → Android verweigert); Teilen nur mit `files` + `text` (ohne `title`); bei Fehler zweiter Versuch über Frage-Fenster „Jetzt schicken“, sonst Download + Hinweis mit Fehlername. „💬 Teilen“ (1.4.1, Wunsch: Bild per WhatsApp an die Oma/Mutter) = Teilen-Menü mit Bild + Text „Schau mal, was ich gemalt habe!“. Einen Ordner direkt anlegen kann eine Web-App auf Android nicht.
 - Einstellungen → „App weitergeben“ (`shareApp`): Link teilen. App ist kostenlos, ohne Anmeldung; jedes Handy hat eigenen Fortschritt (nur localStorage).
 
+- 1.6: WhatsApp meldete „Teilen fehlgeschlagen“, wenn Bild + Text geteilt wurden → nur noch das Bild (JPEG) teilen. Malen hat Modi `PNT.mode` = pen | erase | stamp: „🧽 Schwamm“ radiert mit weißer Farbe (Breite = Pinselgröße · 2,5), 4 Größen; „🗑️ Neu“ löscht alles. `paintSync()` markiert die Knöpfe.
+
 ## Arbeitsweise
 - Testen mit Playwright/Chromium (vorinstalliert) über `python3 -m http.server`; alle Lektionen in einer Schleife generieren und prüfen (richtige Antwort in den Optionen, keine NaN/undefined).
 - Inhalte (Wörter, Sätze, Diktate) in `data.js` ergänzen.

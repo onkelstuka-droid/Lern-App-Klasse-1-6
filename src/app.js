@@ -1,7 +1,7 @@
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.5.1";
+const APP_VER = "1.6.0";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */
@@ -496,7 +496,7 @@ async function shareApp() {
 /* ======================= MALEN ======================= */
 const PAINT_COLORS = ["#23324a", "#f2554f", "#ff9532", "#ffbf1f", "#5ec94d", "#1fbf9f", "#3a9cff", "#9a78ff", "#ff64ab", "#8b5a2b", "#ffffff"];
 const STAMPS = ["⭐", "❤️", "🌸", "🐞", "☀️", "🌈", "🦋", "🐟"];
-let PNT = { c: "#3a9cff", w: 10, stamp: null };
+let PNT = { mode: "pen", c: "#3a9cff", w: 10, stamp: null }; // mode: pen | erase | stamp
 const picKey = () => "lernapp_bilder_" + G.cur;
 function loadPics() { try { return JSON.parse(localStorage.getItem(picKey()) || "[]"); } catch (e) { return []; } }
 function renderPaint() {
@@ -506,16 +506,28 @@ function renderPaint() {
     <div class="paint-main">
       <button class="btn green" data-act="paint-save">💾 Speichern</button>
       <button class="btn wa" data-act="paint-share">💬 Schicken</button>
-      <button class="btn ghost" data-act="paint-clear">🧽 Neu</button>
+      <button class="btn ghost" data-act="paint-clear">🗑️ Neu</button>
     </div>
-    <div class="paint-tools">${PAINT_COLORS.map(c => `<button class="sw" data-color="${c}" style="background:${c}" aria-pressed="${!PNT.stamp && PNT.c === c}" aria-label="Farbe"></button>`).join("")}</div>
-    <div class="paint-tools">${[[5, "•"], [10, "●"], [22, "⬤"]].map(([w, l]) => `<button class="tool" data-width="${w}" aria-pressed="${PNT.w === w}">${l}</button>`).join("")}
-      ${STAMPS.map(s => `<button class="tool" data-stamp="${s}" aria-pressed="${PNT.stamp === s}">${s}</button>`).join("")}</div>
+    <div class="paint-tools">${PAINT_COLORS.map(c => `<button class="sw" data-color="${c}" style="background:${c}" aria-label="Farbe"></button>`).join("")}</div>
+    <div class="paint-tools"><button class="tool wide" data-mode="pen">🖌️ Pinsel</button><button class="tool wide" data-mode="erase">🧽 Schwamm</button>
+      <span class="sizes">${[[5, 8], [10, 14], [22, 22], [36, 30]].map(([w, px]) => `<button class="tool" data-width="${w}" aria-label="Größe"><i style="width:${px}px;height:${px}px"></i></button>`).join("")}</span></div>
+    <div class="paint-tools">${STAMPS.map(s => `<button class="tool" data-stamp="${s}">${s}</button>`).join("")}</div>
+    <div class="muted" id="paintHint" style="margin:-2px 0 6px"></div>
     <canvas class="paint" id="paintCv"></canvas>
     <div class="padbar"><button class="btn ghost small" data-act="paint-undo">↩️ Letzten Strich weg</button></div>
     ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="muted" style="margin-bottom:8px">📥 = aufs Handy speichern · 💬 = verschicken (z. B. WhatsApp) · ✖ = löschen</div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button><button class="shr" data-shrpic="${i}" aria-label="Teilen">💬</button></figure>`).join("")}</div>` : ""}
   </div>`;
-  initPaint();
+  initPaint(); paintSync();
+}
+/* Knöpfe beim Malen richtig markieren */
+function paintSync() {
+  const m = PNT.mode;
+  document.querySelectorAll("[data-color]").forEach(b => b.setAttribute("aria-pressed", m === "pen" && b.dataset.color === PNT.c));
+  document.querySelectorAll("[data-mode]").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === m));
+  document.querySelectorAll("[data-width]").forEach(b => b.setAttribute("aria-pressed", m !== "stamp" && Number(b.dataset.width) === PNT.w));
+  document.querySelectorAll("[data-stamp]").forEach(b => b.setAttribute("aria-pressed", m === "stamp" && b.dataset.stamp === PNT.stamp));
+  const h = $("#paintHint");
+  if (h) h.textContent = m === "erase" ? "🧽 Schwamm: Wische über das, was weg soll. Größe oben auswählen." : m === "stamp" ? `Tippe auf das Bild, um ${PNT.stamp} zu stempeln.` : "🖌️ Pinsel: Farbe und Größe auswählen und losmalen.";
 }
 let PAINT = null;
 function initPaint() {
@@ -537,7 +549,8 @@ function initPaint() {
   cv.addEventListener("pointerdown", e => {
     e.preventDefault(); cv.setPointerCapture(e.pointerId);
     if (PNT.stamp) { PAINT.shapes.push({ stamp: PNT.stamp, p: pos(e) }); tone([880], "sine", 0, 0.1, 0.05); draw(); return; }
-    PAINT.cur = { c: PNT.c, w: PNT.w, pts: [pos(e)] }; PAINT.shapes.push(PAINT.cur); draw();
+    PAINT.cur = PNT.mode === "erase" ? { c: "#ffffff", w: Math.round(PNT.w * 2.5), pts: [pos(e)] } : { c: PNT.c, w: PNT.w, pts: [pos(e)] };
+    PAINT.shapes.push(PAINT.cur); draw();
   });
   cv.addEventListener("pointermove", e => { if (!PAINT.cur) return; const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e]; for (const ev of evs) PAINT.cur.pts.push(pos(ev)); draw(); });
   const up = () => (PAINT.cur = null);
@@ -564,7 +577,7 @@ function exportPic(src, share = false) {
   let file;
   try { file = picFile(src); } catch (e) { toast("Das Bild konnte nicht vorbereitet werden."); return Promise.resolve(false); }
   if (!share) { downloadFile(file); return Promise.resolve(true); }
-  const data = { files: [file], text: `Schau mal, was ich gemalt habe! 🎨${P() ? " – " + P().name : ""}` };
+  const data = { files: [file] }; // nur das Bild: mit zusätzlichem Text meldet WhatsApp „Teilen fehlgeschlagen“ (1.6)
   const canFiles = navigator.share && navigator.canShare && navigator.canShare({ files: [file] });
   if (!canFiles) {
     downloadFile(file);
@@ -948,9 +961,10 @@ document.addEventListener("click", e => {
   if (ds.toggle) { G.set[ds.toggle] = !G.set[ds.toggle]; save(); el.setAttribute("aria-pressed", G.set[ds.toggle]); return; }
   if (ds.rate) { G.set.rate = Number(ds.rate); save(); renderSet(); say("So schnell spreche ich jetzt."); return; }
   if (ds.goal) { G.set.goal = Number(ds.goal); save(); return renderSet(); }
-  if (ds.color) { PNT.c = ds.color; PNT.stamp = null; document.querySelectorAll("[data-color],[data-stamp]").forEach(b => b.setAttribute("aria-pressed", b === el)); return; }
-  if (ds.width) { PNT.w = Number(ds.width); PNT.stamp = null; document.querySelectorAll("[data-width]").forEach(b => b.setAttribute("aria-pressed", b === el)); document.querySelectorAll("[data-stamp]").forEach(b => b.setAttribute("aria-pressed", false)); return; }
-  if (ds.stamp) { PNT.stamp = ds.stamp; document.querySelectorAll("[data-stamp],[data-color],[data-width]").forEach(b => b.setAttribute("aria-pressed", b === el)); return; }
+  if (ds.color) { PNT.c = ds.color; PNT.mode = "pen"; return paintSync(); }
+  if (ds.mode) { PNT.mode = ds.mode; return paintSync(); }
+  if (ds.width) { PNT.w = Number(ds.width); if (PNT.mode === "stamp") PNT.mode = "pen"; return paintSync(); }
+  if (ds.stamp) { PNT.stamp = ds.stamp; PNT.mode = "stamp"; return paintSync(); }
   if (ds.delpic !== undefined) { ask("Dieses Bild löschen?", "Löschen", "Nein", "🗑️").then(ok => { if (!ok) return; const p = loadPics(); p.splice(Number(ds.delpic), 1); localStorage.setItem(picKey(), JSON.stringify(p)); renderPaint(); }); return; }
   if (ds.shrpic !== undefined) { const src = loadPics()[Number(ds.shrpic)]; if (src) exportPic(src, true); return; }
   if (ds.exppic !== undefined) { const src = loadPics()[Number(ds.exppic)]; if (src) exportPic(src); return; }
@@ -986,7 +1000,7 @@ document.addEventListener("click", e => {
     case "paint-undo": if (PAINT) { PAINT.shapes.pop(); PAINT.draw(); } return;
     case "paint-clear": if (PAINT && PAINT.shapes.length) ask("Alles wegmachen und neu anfangen?", "Ja, alles weg", "Nein", "🧽").then(ok => { if (ok) { PAINT.shapes = []; PAINT.draw(); } }); return;
     case "paint-export": if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️"); return exportPic(PAINT.cv.toDataURL("image/png"));
-    case "paint-share": if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️"); return exportPic(PAINT.cv.toDataURL("image/png"), true);
+    case "paint-share": if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️"); return exportPic(PAINT.cv.toDataURL("image/jpeg", 0.92), true);
     case "share-app": return shareApp();
     case "paint-save": return savePaint();
   }
