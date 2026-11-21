@@ -329,6 +329,12 @@ body.noscroll { overflow: hidden; }
 .pf-undo:active { transform: translateY(3px); box-shadow: 0 1px 0 #c96a10; }
 .pf .pf-undo { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); right: 16px; }
 body.noscroll #toast { bottom: 90px; }
+/* Foto-Knopf unten links auf der Malfläche */
+.pf-cam { position: absolute; left: 12px; bottom: 12px; z-index: 2; width: 62px; height: 62px; border-radius: 50%; background: #fff; font-size: 32px; box-shadow: 0 4px 0 var(--line), 0 0 0 3px var(--sky); display: grid; place-items: center; }
+.pf-cam:active { transform: translateY(3px) scale(.95); }
+.pf .pf-cam { position: fixed; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); left: 16px; }
+.flash { position: fixed; inset: 0; background: #fff; z-index: 80; pointer-events: none; animation: flash .45s ease-out forwards; }
+@keyframes flash { from { opacity: .95; } to { opacity: 0; } }
 </style>
 <script>if("serviceWorker" in navigator){var hadSW=!!navigator.serviceWorker.controller,reloaded=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(hadSW&&!reloaded){reloaded=true;location.reload()}});addEventListener("load",function(){navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(function(r){r.update()}).catch(function(){})});document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")navigator.serviceWorker.getRegistration().then(function(r){r&&r.update()})})}</script>
 </head><body>
@@ -1566,6 +1572,7 @@ function renderPaint() {
         <div class="muted pf-hint" id="paintHint"></div>
       </div>
       <canvas class="paint full" id="paintCv"></canvas>
+      <button class="pf-cam" data-act="paint-photo" aria-label="Foto speichern">📷</button>
       <button class="pf-undo" data-act="paint-undo">↩️ Rückgängig</button></div>`;
     initPaint(); paintSync();
     return;
@@ -1586,7 +1593,7 @@ function renderPaint() {
     <div class="paint-tools"><span class="sizes">${sizes}</span></div>
     <div class="paint-tools">${stamps}</div>
     <div class="muted" id="paintHint" style="margin:-2px 0 6px"></div>
-    <div class="paint-wrap"><canvas class="paint" id="paintCv"></canvas><button class="pf-undo" data-act="paint-undo">↩️ Rückgängig</button></div>
+    <div class="paint-wrap"><canvas class="paint" id="paintCv"></canvas><button class="pf-cam" data-act="paint-photo" aria-label="Foto speichern">📷</button><button class="pf-undo" data-act="paint-undo">↩️ Rückgängig</button></div>
     ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="muted" style="margin-bottom:8px">📥 = aufs Handy speichern · ✖ = löschen</div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button></figure>`).join("")}</div>` : ""}
   </div>`;
   initPaint(); paintSync();
@@ -1824,8 +1831,24 @@ function exportPic(src) {
   try { downloadFile(picFile(src)); return Promise.resolve(true); }
   catch (e) { toast("Das Bild konnte nicht gespeichert werden."); return Promise.resolve(false); }
 }
-function savePaint() { // in „Meine Bilder“ und als Bild-Datei aufs Handy (Ordner „Downloads“)
-  if (!PAINT || !PDOC.shapes.length) return toast("Male zuerst etwas! 🖍️");
+/* Foto-Geräusch „klick-klack“ (selbst erzeugt) und weißer Blitz */
+function shutter() {
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const t = AC.currentTime, len = Math.round(AC.sampleRate * 0.07);
+    [0, 0.11].forEach((at, k) => {
+      const buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+      const src = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+      src.buffer = buf; f.type = "bandpass"; f.frequency.value = k ? 1800 : 3200; f.Q.value = 0.8; g.gain.value = k ? 0.9 : 0.7;
+      src.connect(f).connect(g).connect(AC.destination); src.start(t + at);
+    });
+  } catch (e) {}
+  const fl = document.createElement("div"); fl.className = "flash"; document.body.appendChild(fl);
+  setTimeout(() => fl.remove(), 500);
+}
+function savePaint(photo) { // in „Meine Bilder“ und als Bild-Datei aufs Handy (Ordner „Downloads“); nur das Bild, ohne Knöpfe
+  if (!PAINT || !PDOC.shapes.length) return toast(photo ? "Male zuerst etwas – dann mach ein Foto! 📷" : "Male zuerst etwas! 🖍️");
   const snap = PAINT.snapshot("image/png"), img = new Image();
   img.onload = () => {
     const w = 480, h = Math.round((img.height / img.width) * w), c = document.createElement("canvas");
@@ -1836,8 +1859,8 @@ function savePaint() { // in „Meine Bilder“ und als Bild-Datei aufs Handy (O
     if (!PAINT_FULL) renderPaint();
   };
   img.src = snap;
-  exportPic(snap).then(ok => { if (ok) toast("Gespeichert! 🖼️ Unter „Meine Bilder“ und auf dem Handy im Ordner „Downloads“."); });
-  confetti(14); tone([523, 659, 784]);
+  exportPic(snap).then(ok => { if (ok) toast(photo ? "📸 Foto gespeichert! (in „Meine Bilder“ und auf dem Handy)" : "Gespeichert! 🖼️ Unter „Meine Bilder“ und auf dem Handy im Ordner „Downloads“."); });
+  if (photo) shutter(); else { confetti(14); tone([523, 659, 784]); }
 }
 
 /* Klicks im Malbereich (aus dem allgemeinen Klick-Verteiler) – true = erledigt */
@@ -1852,6 +1875,7 @@ function paintClick(ds, el, act) {
     case "paint-undo": if (PAINT) PAINT.undo(); return true;
     case "paint-clear": if (PDOC && PDOC.shapes.length) ask("Alles wegmachen und neu anfangen?", "Ja, alles weg", "Nein", "🗑️").then(ok => { if (ok) { PDOC.shapes = []; renderPaint(); } }); return true;
     case "paint-save": savePaint(); return true;
+    case "paint-photo": savePaint(true); return true;
     case "paint-tpl": pickTemplate(); return true;
     case "paint-full": pushLayer(() => paintFull(false)); paintFull(true); return true;
     case "paint-small": back(); return true;
@@ -1864,7 +1888,7 @@ function paintClick(ds, el, act) {
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.9.1";
+const APP_VER = "1.10.0";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */
