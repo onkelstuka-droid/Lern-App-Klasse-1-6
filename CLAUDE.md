@@ -44,6 +44,7 @@ Wünsche (21.11.2026): Kinder Klasse 1–6; Buchstaben, Zahlen, Rechnen; mit dem
 - Einstellungen → „App weitergeben“ (`shareApp`): Link teilen. App ist kostenlos, ohne Anmeldung; jedes Handy hat eigenen Fortschritt (nur localStorage).
 
 - 1.6: WhatsApp meldete „Teilen fehlgeschlagen“, wenn Bild + Text geteilt wurden → nur noch das Bild (JPEG) teilen. Malen hat Modi `PNT.mode` = pen | erase | stamp: „🧽 Schwamm“ radiert mit weißer Farbe (Breite = Pinselgröße · 2,5), 4 Größen; „🗑️ Neu“ löscht alles. `paintSync()` markiert die Knöpfe.
+- 1.7: WhatsApp meldete trotzdem „Teilen fehlgeschlagen“ (Ursache am Gerät nicht prüfbar) → Teilen jetzt mit leerem `title` und verkleinertem JPEG (`PAINT.snapshot`, max. 1280 px); danach Hinweis „sonst 💾 Speichern und in WhatsApp über 📎 anhängen“. Stempel: Größe `s` je Stempel; im Stempel-Modus Stempel antippen = auswählen (gestrichelter Rahmen, nicht im gespeicherten Bild), mit einem Finger verschieben, mit zwei Fingern größer/kleiner ziehen, ➕/➖-Knöpfe. Fehler behoben: nach Stempeln hat der Pinsel weiter gestempelt (Abfrage jetzt `PNT.mode === "stamp"`).
 
 ## Arbeitsweise
 - Testen mit Playwright/Chromium (vorinstalliert) über `python3 -m http.server`; alle Lektionen in einer Schleife generieren und prüfen (richtige Antwort in den Optionen, keine NaN/undefined).

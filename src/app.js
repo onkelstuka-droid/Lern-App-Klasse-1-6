@@ -1,7 +1,7 @@
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.6.0";
+const APP_VER = "1.7.0";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */
@@ -527,33 +527,79 @@ function paintSync() {
   document.querySelectorAll("[data-width]").forEach(b => b.setAttribute("aria-pressed", m !== "stamp" && Number(b.dataset.width) === PNT.w));
   document.querySelectorAll("[data-stamp]").forEach(b => b.setAttribute("aria-pressed", m === "stamp" && b.dataset.stamp === PNT.stamp));
   const h = $("#paintHint");
-  if (h) h.textContent = m === "erase" ? "🧽 Schwamm: Wische über das, was weg soll. Größe oben auswählen." : m === "stamp" ? `Tippe auf das Bild, um ${PNT.stamp} zu stempeln.` : "🖌️ Pinsel: Farbe und Größe auswählen und losmalen.";
+  if (h) h.innerHTML = m === "erase" ? "🧽 Schwamm: Wische über das, was weg soll. Größe oben auswählen." : m === "stamp" ? `<div class="row" style="flex-wrap:wrap"><span class="sp">Tippe ins Bild, um ${PNT.stamp} zu stempeln. Stempel antippen = auswählen und mit dem Finger verschieben, mit zwei Fingern größer ziehen.</span><button class="tool" data-act="stamp-smaller" aria-label="kleiner">➖</button><button class="tool" data-act="stamp-bigger" aria-label="größer">➕</button></div>` : "🖌️ Pinsel: Farbe und Größe auswählen und losmalen.";
+  if (PAINT && PAINT.draw) PAINT.draw();
 }
 let PAINT = null;
 function initPaint() {
   const cv = $("#paintCv"), ctx = cv.getContext("2d");
   const old = PAINT && PAINT.shapes ? PAINT.shapes : [];
-  PAINT = { cv, ctx, shapes: old, cur: null };
+  PAINT = { cv, ctx, shapes: old, cur: null, sel: null };
   const size = () => { const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1; cv.width = r.width * dpr; cv.height = r.height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); PAINT.W = r.width; PAINT.H = r.height; draw(); };
   const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / PAINT.W, (e.clientY - r.top) / PAINT.H]; };
-  function draw() {
+  const stampPx = s => PAINT.W * 0.11 * (s.s || 1);
+  function draw(clean) {
     ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, PAINT.W, PAINT.H);
     ctx.lineCap = ctx.lineJoin = "round";
     for (const s of PAINT.shapes) {
-      if (s.stamp) { ctx.font = `${Math.round(PAINT.W * 0.11)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(s.stamp, s.p[0] * PAINT.W, s.p[1] * PAINT.H); continue; }
+      if (s.stamp) { ctx.font = `${Math.round(stampPx(s))}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(s.stamp, s.p[0] * PAINT.W, s.p[1] * PAINT.H); continue; }
       ctx.strokeStyle = ctx.fillStyle = s.c; ctx.lineWidth = s.w;
       polyline(ctx, s.pts.map(([x, y]) => [x * PAINT.W, y * PAINT.H]), 0, s.w);
     }
+    const sel = PAINT.shapes[PAINT.sel];
+    if (!clean && sel && sel.stamp && PNT.mode === "stamp") { // ausgewählter Stempel: gestrichelter Rahmen
+      const r = stampPx(sel) * 0.62;
+      ctx.save(); ctx.setLineDash([6, 5]); ctx.lineWidth = 2; ctx.strokeStyle = "#3a9cff";
+      ctx.strokeRect(sel.p[0] * PAINT.W - r, sel.p[1] * PAINT.H - r, 2 * r, 2 * r); ctx.restore();
+    }
   }
+  /* Bild ohne Auswahl-Rahmen, verkleinert (max. 1280 Pixel breit) */
+  PAINT.snapshot = (type = "image/png", q) => {
+    draw(true);
+    const w = Math.min(cv.width, 1280), h = Math.round((cv.height / cv.width) * w), c = document.createElement("canvas");
+    c.width = w; c.height = h; c.getContext("2d").drawImage(cv, 0, 0, w, h);
+    draw();
+    return c.toDataURL(type, q);
+  };
   PAINT.draw = draw; PAINT.resize = size;
+  PAINT.scaleSel = f => { const s = PAINT.shapes[PAINT.sel]; if (!s || !s.stamp) return toast("Tippe zuerst auf einen Stempel im Bild."); s.s = Math.max(0.3, Math.min(5, (s.s || 1) * f)); draw(); };
+  const ptrs = new Map(); // Finger auf der Malfläche
+  let pinch = null, drag = null;
+  const hitStamp = p => { for (let k = PAINT.shapes.length - 1; k >= 0; k--) { const s = PAINT.shapes[k]; if (!s.stamp) continue; const r = stampPx(s) * 0.6; if (Math.hypot((p[0] - s.p[0]) * PAINT.W, (p[1] - s.p[1]) * PAINT.H) <= r) return k; } return -1; };
   cv.addEventListener("pointerdown", e => {
     e.preventDefault(); cv.setPointerCapture(e.pointerId);
-    if (PNT.stamp) { PAINT.shapes.push({ stamp: PNT.stamp, p: pos(e) }); tone([880], "sine", 0, 0.1, 0.05); draw(); return; }
+    ptrs.set(e.pointerId, pos(e));
+    if (PNT.mode === "stamp") {
+      if (ptrs.size === 2 && PAINT.sel != null) { // zwei Finger: Stempel größer/kleiner ziehen
+        const [a, b] = [...ptrs.values()];
+        pinch = { d: Math.hypot((a[0] - b[0]) * PAINT.W, (a[1] - b[1]) * PAINT.H) || 1, s: PAINT.shapes[PAINT.sel].s || 1 };
+        drag = null; return;
+      }
+      if (ptrs.size > 1) return;
+      const p = pos(e), k = hitStamp(p);
+      if (k >= 0) { PAINT.sel = k; drag = { k, dx: PAINT.shapes[k].p[0] - p[0], dy: PAINT.shapes[k].p[1] - p[1] }; draw(); return; }
+      PAINT.shapes.push({ stamp: PNT.stamp, p, s: 1 }); PAINT.sel = PAINT.shapes.length - 1; drag = null;
+      tone([880], "sine", 0, 0.1, 0.05); draw(); return;
+    }
+    if (ptrs.size > 1) return;
     PAINT.cur = PNT.mode === "erase" ? { c: "#ffffff", w: Math.round(PNT.w * 2.5), pts: [pos(e)] } : { c: PNT.c, w: PNT.w, pts: [pos(e)] };
     PAINT.shapes.push(PAINT.cur); draw();
   });
-  cv.addEventListener("pointermove", e => { if (!PAINT.cur) return; const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e]; for (const ev of evs) PAINT.cur.pts.push(pos(ev)); draw(); });
-  const up = () => (PAINT.cur = null);
+  cv.addEventListener("pointermove", e => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, pos(e));
+    if (PNT.mode === "stamp") {
+      const sel = PAINT.shapes[PAINT.sel];
+      if (pinch && sel && ptrs.size >= 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot((a[0] - b[0]) * PAINT.W, (a[1] - b[1]) * PAINT.H); sel.s = Math.max(0.3, Math.min(5, pinch.s * d / pinch.d)); draw(); }
+      else if (drag && sel) { const p = pos(e); sel.p = [p[0] + drag.dx, p[1] + drag.dy]; draw(); }
+      return;
+    }
+    if (!PAINT.cur) return;
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    for (const ev of evs) PAINT.cur.pts.push(pos(ev));
+    draw();
+  });
+  const up = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) drag = null; PAINT.cur = null; };
   cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
   size();
 }
@@ -577,14 +623,14 @@ function exportPic(src, share = false) {
   let file;
   try { file = picFile(src); } catch (e) { toast("Das Bild konnte nicht vorbereitet werden."); return Promise.resolve(false); }
   if (!share) { downloadFile(file); return Promise.resolve(true); }
-  const data = { files: [file] }; // nur das Bild: mit zusätzlichem Text meldet WhatsApp „Teilen fehlgeschlagen“ (1.6)
+  const data = { files: [file], title: "" }; // nur das Bild (mit Text: WhatsApp „Teilen fehlgeschlagen“, 1.6); leerer Titel half laut Berichten bei WhatsApp (1.7)
   const canFiles = navigator.share && navigator.canShare && navigator.canShare({ files: [file] });
   if (!canFiles) {
     downloadFile(file);
     toast("Dieses Handy kann Bilder hier nicht direkt verschicken. Das Bild liegt in „Downloads“ – in WhatsApp über 📎 anhängen.");
     return Promise.resolve(false);
   }
-  return navigator.share(data).then(() => true).catch(e => {
+  return navigator.share(data).then(() => { setTimeout(() => toast("Hat WhatsApp „Teilen fehlgeschlagen“ gemeldet? Dann 💾 Speichern und in WhatsApp über 📎 → Galerie anhängen."), 1500); return true; }).catch(e => {
     if (e && e.name === "AbortError") return false; // selbst abgebrochen
     // zweiter Versuch mit neuem Antippen (Android erlaubt Teilen nur direkt nach einem Tippen)
     return ask("Bild verschicken?", "💬 Jetzt schicken", "Abbrechen", "📨").then(ok => {
@@ -600,12 +646,12 @@ function exportPic(src, share = false) {
 }
 function savePaint() { // in „Meine Bilder“ und als Bild-Datei aufs Handy (Ordner „Downloads“)
   if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️");
-  const src = PAINT.cv, w = 480, h = Math.round((src.height / src.width) * w), c = document.createElement("canvas");
-  c.width = w; c.height = h; c.getContext("2d").drawImage(src, 0, 0, w, h);
+  const snap = PAINT.snapshot("image/png"), src = PAINT.cv, w = 480, h = Math.round((src.height / src.width) * w), c = document.createElement("canvas");
+  c.width = w; c.height = h; PAINT.draw(true); c.getContext("2d").drawImage(src, 0, 0, w, h);
   const pics = loadPics(); pics.unshift(c.toDataURL("image/jpeg", 0.72));
   while (pics.length > 12) pics.pop();
   try { localStorage.setItem(picKey(), JSON.stringify(pics)); } catch (e) { pics.pop(); try { localStorage.setItem(picKey(), JSON.stringify(pics.slice(0, 6))); } catch (e2) {} }
-  exportPic(src.toDataURL("image/png")).then(ok => { if (ok) toast("Gespeichert! 🖼️ Unter „Meine Bilder“ und auf dem Handy im Ordner „Downloads“."); });
+  exportPic(snap).then(ok => { if (ok) toast("Gespeichert! 🖼️ Unter „Meine Bilder“ und auf dem Handy im Ordner „Downloads“."); });
   PAINT.shapes = []; confetti(14); tone([523, 659, 784]); renderPaint();
 }
 
@@ -999,8 +1045,10 @@ document.addEventListener("click", e => {
     case "restore": return $("#restoreFile").click();
     case "paint-undo": if (PAINT) { PAINT.shapes.pop(); PAINT.draw(); } return;
     case "paint-clear": if (PAINT && PAINT.shapes.length) ask("Alles wegmachen und neu anfangen?", "Ja, alles weg", "Nein", "🧽").then(ok => { if (ok) { PAINT.shapes = []; PAINT.draw(); } }); return;
-    case "paint-export": if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️"); return exportPic(PAINT.cv.toDataURL("image/png"));
-    case "paint-share": if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️"); return exportPic(PAINT.cv.toDataURL("image/jpeg", 0.92), true);
+    case "paint-export": if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️"); return exportPic(PAINT.snapshot("image/png"));
+    case "paint-share": if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️"); return exportPic(PAINT.snapshot("image/jpeg", 0.9), true);
+    case "stamp-bigger": return PAINT && PAINT.scaleSel(1.25);
+    case "stamp-smaller": return PAINT && PAINT.scaleSel(0.8);
     case "share-app": return shareApp();
     case "paint-save": return savePaint();
   }
