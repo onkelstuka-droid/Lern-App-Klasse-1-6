@@ -1,7 +1,7 @@
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.1.0";
+const APP_VER = "1.2.0";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */
@@ -73,6 +73,9 @@ function pickVoice() {
   if (own) return own;
   const nice = v => /google|natural|enhanced|premium|neural/i.test(v.name);
   const de = VOICES.filter(v => /de[-_]DE/i.test(v.lang));
+  /* Männer-Figuren: eine männliche Stimme nehmen, wenn das Handy eine anbietet */
+  const st = STYLE[G.set.style];
+  if (st && st.male) { const m = VOICES.find(v => !/female|weiblich/i.test(v.name) && /\bmale\b|männlich|markus|stefan|conrad|killian|florian|jonas|x-deg|x-dea/i.test(v.name)); if (m) return m; }
   return de.find(nice) || de[0] || VOICES.find(nice) || VOICES[0] || null;
 }
 const DEN = { 2: "Halbe", 3: "Drittel", 4: "Viertel", 5: "Fünftel", 6: "Sechstel", 7: "Siebtel", 8: "Achtel", 9: "Neuntel", 10: "Zehntel", 12: "Zwölftel", 100: "Hundertstel" };
@@ -100,17 +103,14 @@ function say(text, rate = 1) {
 /* Vorlese-Stimmen (Tonhöhe und Tempo der Handy-Stimme) */
 const STYLE = {
   lumi: { e: "🦉", n: "Lumi", pitch: 1.1, rate: 1, hi: "Hallo! Ich bin Lumi, die Lern-Eule." },
-  papa: { e: "🐻", n: "Papa Bär", pitch: 0.55, rate: 0.9, hi: "Hallo! Ich bin Papa Bär. Brumm brumm!" },
   maus: { e: "🐭", n: "Mäuschen", pitch: 1.9, rate: 1.08, hi: "Hallo! Ich bin das kleine Mäuschen. Piep piep!" },
-  robo: { e: "🤖", n: "Robo", pitch: 0.2, rate: 0.85, hi: "Hallo. Ich. Bin. Robo. Der Rechen-Roboter." },
-  opa: { e: "🐢", n: "Opa Kröte", pitch: 0.75, rate: 0.72, hi: "Hallo, mein Kind. Ich bin Opa Kröte. Wir haben viel Zeit." },
+  robo: { e: "🤖", n: "Robo", pitch: 0.2, rate: 0.85, male: true, hi: "Hallo. Ich. Bin. Robo. Der Rechen-Roboter." },
   fee: { e: "🧚", n: "Fee Flora", pitch: 1.5, rate: 0.95, hi: "Hallo! Ich bin Fee Flora. Lass uns zaubern und lernen!" },
-  /* eigene Schweine-Familie „Ringelschwanz“ (keine Figuren aus Fernsehserien nachmachen) */
-  rpapa: { e: "🐷", n: "Papa Ringel", pitch: 0.5, rate: 0.92, hi: "Grunz! Hallo, ich bin Papa Ringel. Komm, wir lernen zusammen!" },
-  rmama: { e: "🐖", n: "Mama Ringel", pitch: 1.15, rate: 0.95, hi: "Hallo, mein Schatz! Ich bin Mama Ringel. Grunz grunz!" },
-  rosi: { e: "🐽", n: "Ferkel Rosi", pitch: 1.7, rate: 1.05, hi: "Hihi, grunz! Ich bin Ferkel Rosi. Wollen wir in die Pfütze springen? Erst nach dem Lernen!" },
-  rbaby: { e: "🍼", n: "Baby Ringel", pitch: 2, rate: 1.12, hi: "Grunzi grunzi! Ich bin Baby Ringel." },
-  ropa: { e: "👴", n: "Opa Ringel", pitch: 0.7, rate: 0.8, hi: "Grunz! Ich bin Opa Ringel. Schön, dass du da bist." }
+  /* Männer-Stimmen (Wunsch 1.2: für Jungs – Superheld, Baggerfahrer, Polizist) */
+  held: { e: "🦸‍♂️", n: "Kapitän Blitz", pitch: 0.6, rate: 1.05, male: true, hi: "Keine Angst! Kapitän Blitz ist da! Zusammen schaffen wir jede Aufgabe!" },
+  bagger: { e: "🚜", n: "Baggerfahrer Bernd", pitch: 0.45, rate: 0.9, male: true, hi: "Moin! Ich bin Bernd, der Baggerfahrer. Jetzt wird gebuddelt – und gelernt!" },
+  polizei: { e: "👮‍♂️", n: "Polizist Paul", pitch: 0.65, rate: 0.95, male: true, hi: "Guten Tag! Polizist Paul hier. Ich passe auf, dass du alles richtig machst!" },
+  feuer: { e: "👨‍🚒", n: "Feuerwehrmann Fred", pitch: 0.55, rate: 1, male: true, hi: "Tatü tata! Feuerwehrmann Fred ist zur Stelle. Los geht's!" }
 };
 const stopSay = () => { try { speechSynthesis.cancel(); } catch (e) {} };
 
@@ -436,7 +436,7 @@ function renderSet() {
     </div>
     <div class="sec"><h3>Hören und Sprechen</h3></div>
     <div class="card">
-      <div class="set-row" style="display:block"><span>Wer liest vor?</span><div class="seg" style="margin-top:8px">${Object.entries(STYLE).map(([k, v]) => `<button data-style="${k}" aria-pressed="${(s.style || "lumi") === k}" style="font-size:16px;height:auto;padding:6px 10px;display:flex;flex-direction:column;align-items:center"><span style="font-size:30px">${v.e}</span>${v.n}</button>`).join("")}</div></div>
+      <div class="set-row" style="display:block"><span>Wer liest vor?</span><div class="seg" style="margin-top:8px">${Object.entries(STYLE).map(([k, v]) => `<button data-style="${k}" aria-pressed="${(STYLE[s.style] ? s.style : "lumi") === k}" style="font-size:16px;height:auto;padding:6px 10px;display:flex;flex-direction:column;align-items:center"><span style="font-size:30px">${v.e}</span>${v.n}</button>`).join("")}</div></div>
       <div class="set-row"><span>Aufgaben automatisch vorlesen</span>${sw("auto", s.auto)}</div>
       <div class="set-row"><span>Töne</span>${sw("sfx", s.sfx)}</div>
       <div class="set-row"><span>Stimme</span><select id="voiceSel"><option value="">Automatisch</option>${VOICES.map(v => `<option value="${esc(v.name)}" ${v.name === s.voice ? "selected" : ""}>${esc(v.name)}</option>`).join("")}</select></div>
