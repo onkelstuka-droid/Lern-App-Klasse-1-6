@@ -39,7 +39,7 @@ Wünsche (21.11.2026): Kinder Klasse 1–6; Buchstaben, Zahlen, Rechnen; mit dem
 
 ## Malen und Fenster (1.4)
 - Keine `confirm()`-Fenster mehr (die zeigten „http://onkelstuka-droid.github.io“, Nutzer wollte seinen Namen dort nicht sehen) – stattdessen eigenes Fenster `ask(text, ja, nein, bild)` → Promise.
-- Malen: „🖼️ In meine Bilder“ (Galerie in der App, max. 12, `lernapp_bilder_<id>`) und „📥 Aufs Handy“ (`exportPic`): Teilen-Menü von Android (Fotos/Drive/Dateien-Ordner wählbar), sonst Download nach „Downloads“. Auch jedes Galerie-Bild hat 📥. Einen Ordner direkt anlegen kann eine Web-App auf Android nicht.
+- Malen: „🖼️ In meine Bilder“ (Galerie in der App, max. 12, `lernapp_bilder_<id>`) und „📥 Aufs Handy“ (`exportPic`): Teilen-Menü von Android (Fotos/Drive/Dateien-Ordner wählbar), sonst Download nach „Downloads“. Auch jedes Galerie-Bild hat 📥. „💬 Teilen“ (1.4.1, Wunsch: Bild per WhatsApp an die Oma/Mutter) = Teilen-Menü mit Bild + Text „Schau mal, was ich gemalt habe!“. Einen Ordner direkt anlegen kann eine Web-App auf Android nicht.
 - Einstellungen → „App weitergeben“ (`shareApp`): Link teilen. App ist kostenlos, ohne Anmeldung; jedes Handy hat eigenen Fortschritt (nur localStorage).
 
 ## Arbeitsweise

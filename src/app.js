@@ -1,7 +1,7 @@
 /* ======================= LERN-APP KLASSE 1–6 =======================
    Speicher: localStorage „lernapp_v1“ (alle Kinder), Bilder je Kind „lernapp_bilder_<id>“. */
 "use strict";
-const APP_VER = "1.4.0";
+const APP_VER = "1.4.1";
 const STORE = "lernapp_v1";
 
 /* ---------- Speicher ---------- */
@@ -507,8 +507,8 @@ function renderPaint() {
     <div class="paint-tools">${[[5, "•"], [10, "●"], [22, "⬤"]].map(([w, l]) => `<button class="tool" data-width="${w}" aria-pressed="${PNT.w === w}">${l}</button>`).join("")}
       ${STAMPS.map(s => `<button class="tool" data-stamp="${s}" aria-pressed="${PNT.stamp === s}">${s}</button>`).join("")}</div>
     <canvas class="paint" id="paintCv"></canvas>
-    <div class="padbar"><button class="btn ghost small" data-act="paint-undo">↩️ Zurück</button><button class="btn ghost small" data-act="paint-clear">🧽 Alles weg</button><button class="btn green small" data-act="paint-save">🖼️ In meine Bilder</button><button class="btn small" data-act="paint-export">📥 Aufs Handy</button></div>
-    ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button></figure>`).join("")}</div>` : ""}
+    <div class="padbar"><button class="btn ghost small" data-act="paint-undo">↩️ Zurück</button><button class="btn ghost small" data-act="paint-clear">🧽 Alles weg</button><button class="btn green small" data-act="paint-save">🖼️ In meine Bilder</button><button class="btn small" data-act="paint-export">📥 Aufs Handy</button><button class="btn small" style="background:#25d366;box-shadow:0 5px 0 #179e4a" data-act="paint-share">💬 Teilen</button></div>
+    ${pics.length ? `<div class="sec"><h3>Meine Bilder</h3></div><div class="gallery">${pics.map((src, i) => `<figure><img src="${src}" alt="Bild ${i + 1}"><button data-delpic="${i}" aria-label="Löschen">✖</button><button class="exp" data-exppic="${i}" aria-label="Aufs Handy speichern">📥</button><button class="shr" data-shrpic="${i}" aria-label="Teilen">💬</button></figure>`).join("")}</div>` : ""}
   </div>`;
   initPaint();
 }
@@ -540,19 +540,19 @@ function initPaint() {
   size();
 }
 /* Bild aufs Handy: Teilen-Menü (z. B. Google Fotos oder ein Ordner in „Dateien“), sonst Download-Ordner */
-async function exportPic(src) {
+async function exportPic(src, share = false) {
   try {
     const blob = await (await fetch(src)).blob();
     const d = new Date(), name = `Lern-App-Bild-${dayStr(d)}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}.${blob.type === "image/png" ? "png" : "jpg"}`;
     const file = new File([blob], name, { type: blob.type });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: "Mein Bild" }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+      try { await navigator.share(share ? { files: [file], title: "Mein Bild", text: `Schau mal, was ich gemalt habe! 🎨 ${P() ? "– " + P().name : ""}` } : { files: [file], title: "Mein Bild" }); return; } catch (e) { if (e && e.name === "AbortError") return; }
     }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    toast("Bild gespeichert (Ordner „Downloads“). 🖼️");
+    toast(share ? "Teilen geht hier nicht direkt. Das Bild liegt in „Downloads“ – in WhatsApp über 📎 anhängen." : "Bild gespeichert (Ordner „Downloads“). 🖼️");
   } catch (e) { toast("Speichern hat nicht geklappt."); }
 }
 function savePaint() {
@@ -921,6 +921,7 @@ document.addEventListener("click", e => {
   if (ds.width) { PNT.w = Number(ds.width); PNT.stamp = null; document.querySelectorAll("[data-width]").forEach(b => b.setAttribute("aria-pressed", b === el)); document.querySelectorAll("[data-stamp]").forEach(b => b.setAttribute("aria-pressed", false)); return; }
   if (ds.stamp) { PNT.stamp = ds.stamp; document.querySelectorAll("[data-stamp],[data-color],[data-width]").forEach(b => b.setAttribute("aria-pressed", b === el)); return; }
   if (ds.delpic !== undefined) { ask("Dieses Bild löschen?", "Löschen", "Nein", "🗑️").then(ok => { if (!ok) return; const p = loadPics(); p.splice(Number(ds.delpic), 1); localStorage.setItem(picKey(), JSON.stringify(p)); renderPaint(); }); return; }
+  if (ds.shrpic !== undefined) { const src = loadPics()[Number(ds.shrpic)]; if (src) exportPic(src, true); return; }
   if (ds.exppic !== undefined) { const src = loadPics()[Number(ds.exppic)]; if (src) exportPic(src); return; }
   switch (ds.act) {
     case "back": return back();
@@ -954,6 +955,7 @@ document.addEventListener("click", e => {
     case "paint-undo": if (PAINT) { PAINT.shapes.pop(); PAINT.draw(); } return;
     case "paint-clear": if (PAINT && PAINT.shapes.length) ask("Alles wegmachen und neu anfangen?", "Ja, alles weg", "Nein", "🧽").then(ok => { if (ok) { PAINT.shapes = []; PAINT.draw(); } }); return;
     case "paint-export": if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️"); return exportPic(PAINT.cv.toDataURL("image/png"));
+    case "paint-share": if (!PAINT || !PAINT.shapes.length) return toast("Male zuerst etwas! 🖍️"); return exportPic(PAINT.cv.toDataURL("image/png"), true);
     case "share-app": return shareApp();
     case "paint-save": return savePaint();
   }

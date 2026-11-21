@@ -286,3 +286,4 @@ canvas.paint { width: 100%; height: 58vh; background: #fff; border-radius: 20px;
 .modal .btn { flex: 1; padding: 0 10px; font-size: 18px; }
 @keyframes fadein { from { opacity: 0; } }
 .gallery button.exp { top: auto; bottom: 4px; }
+.gallery button.shr { top: auto; bottom: 4px; right: 38px; }
